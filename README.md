@@ -11,6 +11,8 @@
 4. **Stack top participates in dispatch** — the top-of-stack element feeds into `statusDispatcher`, enabling richer branching logic.
 
 > **Note**: the project may still have rough edges and missing corner-case handling. Issues and feedback are welcome!
+>
+> **Supplement**: Currently, the run loop returns when it detects a `null` status, which does not align with the original design intent. Avoid relying on this behavior to exit; instead, use `run` with a concrete status to invoke the function passed by the root creator to explicitly transfer control flow.
 
 [![npm version](https://img.shields.io/npm/v/state-stack)](https://www.npmjs.com/package/state-stack)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
