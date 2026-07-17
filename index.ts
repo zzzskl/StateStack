@@ -1,1 +1,1 @@
-export { createStateStack, refineCreateStateStack } from './src/createStateStack.js';
+export { createStateStack, refineCreateStateStack } from './dist/src/createStateStack.js';

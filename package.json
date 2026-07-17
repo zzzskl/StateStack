@@ -13,7 +13,7 @@
     },
     "scripts": {
         "build": "tsc",
-        "test": "node --test dist/test/"
+        "test": "node --test dist/test/*.test.js"
     },
     "keywords": [
         "state-machine",

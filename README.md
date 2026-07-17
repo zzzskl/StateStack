@@ -1,45 +1,45 @@
 # StateStack
 
-**来自作者**：stateStack 是一个将栈和状态机融合在一起的东西。它的设计有几个关键点。
+**From the author**: StateStack fuses a stack with a state machine. It has several key design points.
 
-一是没有用类，整个库实现使用对象表达，但是仍然能够支持多个模块导入导出的静态加强，以一点模块副作用为代价。以及与类相似的声明式体验。
+1. **No classes** — the entire library is expressed using plain objects, yet still supports static augmentation across multiple module imports (at the cost of minor module side effects), with a declarative experience similar to classes.
 
-二是支持嵌套，一个 stateStack 可以创建拥有其子 stateStack，并使用显式的 run 在各级 stateStack 和根实例创建者之间进行控制流转移。
+2. **Nesting** — a StateStack can spawn child StateStacks, with explicit `run` primitives to transfer control flow between parent, child, and root creator.
 
-三是限制状态机在一轮信息收集-做出行动循环中所能造成的效果，通过让 effect 以固定的形式，栈操作 pop/push 和控制流 run 转移来表达。同时限制 write 写操作，switchStatus 的调用次数。
+3. **Constrained effects per cycle** — each "gather information → take action" round is limited. Effects are expressed through fixed-form stack operations (`pop`/`push`) and control-flow transfers (`run`). Write operations (`writeResultData`, `writeExtra`) and `switchStatus` calls are rate-limited per cycle.
 
-四是让栈顶元素参与到 statusDispatcher 中影响状态分支，提供了更强的拓展性。
+4. **Stack top participates in dispatch** — the top-of-stack element feeds into `statusDispatcher`, enabling richer branching logic.
 
-目前项目可能还会缺少一些细节和边界上的优化和处理。欢迎在issue中提出。希望我的项目能够成为你在问题场景中合适的建模工具。
-
-补充：目前项目中的run循环检查到status为null时会返回，这并不符合设计本意。避免使用这种方式返回，而是使用run调用根创造者传入的函数来显式转移控制流。
+> **Note**: the project may still have rough edges and missing corner-case handling. Issues and feedback are welcome!
 
 [![npm version](https://img.shields.io/npm/v/state-stack)](https://www.npmjs.com/package/state-stack)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/types-included-blue)](./index.d.ts)
 
----
-
-## 什么是 StateStack？
-
-StateStack 不是一个普通的状态机库。它适合这样的场景：
-
-> **你的工作流是"逐层深入、逐层返回"的嵌套结构**——比如递归解析、多阶段流水线、嵌套事务。每层做一件事，做完带着结果回上一层。StateStack 把这种"分层推进、逐层返回"的模式固化为三个原语操作：**push（入栈）**、**pop（弹栈）**、**run（控制权转移）**。
-
-**什么时候用它？**
-
-- 你的流程有"进入子任务 → 子任务完成 → 回到父任务"的天然栈结构
-- 你想让每层业务逻辑独立编写，不需要手写状态转移表
-- 你想把副作用（入栈、弹栈、调子流程）收束到固定的操作形式，方便做横切（日志、缓存、审计）
-
-**什么时候不必要？**
-
-- 只有 2-3 个状态的简单标志位 — 一个 `switch/case` 就够了
-- 复杂的并发状态、正交区域状态 — XState 等工具更合适
+> 📖 [中文文档](./README.zh-CN.md)
 
 ---
 
-## 安装
+## What is StateStack?
+
+StateStack is not a typical state-machine library. It's designed for scenarios where:
+
+> **Your workflow is a nested "drill down, bubble up" structure** — like recursive parsing, multi-stage pipelines, nested transactions. Each layer does its job, then returns the result to the layer above. StateStack codifies this "layer-by-layer push, layer-by-layer return" pattern into three primitive operations: **push**, **pop**, and **run** (control transfer).
+
+**When to use it?**
+
+- Your flow has a natural "enter sub-task → complete sub-task → return to parent" stack structure
+- You want each layer's business logic to be independent, without hand-written state-transition tables
+- You want to funnel side effects (push, pop, run child) into fixed operation forms, making cross-cutting concerns (logging, caching, auditing) easy
+
+**When not to use it?**
+
+- Simple 2–3 state flags — a `switch/case` is enough
+- Complex concurrent states, orthogonal regions — tools like XState are more appropriate
+
+---
+
+## Installation
 
 ```bash
 npm install state-stack
@@ -51,32 +51,32 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 
 ---
 
-## 快速开始
+## Quick Start
 
-下面是一个三状态（`idle → processing → done`）的最小状态机，展示完整的**入栈 → 处理 → 弹栈 → 控制权回传，循环终止**流程。
+A three-state (`idle → processing → done`) minimal state machine showing the full **push → process → pop → control return → loop termination** flow:
 
 ```js
 import { createStateStack } from 'state-stack';
 
 const ss = createStateStack({
-    // ── 状态类型声明 ──
+    // ── state type declaration ──
     state: {
-        status: ['idle', 'processing', 'done'],  // 所有可能的 status 值
-        resultData: { done: false },              // resultData 字段结构
+        status: ['idle', 'processing', 'done'],  // all possible status values
+        resultData: { done: false },              // resultData field structure
     },
 
-    // ── 栈操作定义 ──
-    peek: (peek) => peek(),                       // 读取栈顶
-    push: (push, data) => push(data),             // 入栈
-    pop: (pop, writeResultData) => {              // 弹栈 + 写入结果
+    // ── stack operation definitions ──
+    peek: (peek) => peek(),                       // read top of stack
+    push: (push, data) => push(data),             // push to stack
+    pop: (pop, writeResultData) => {              // pop + write result
         writeResultData({ done: true });
         pop();
     },
 
-    // ── 状态分发：决定当前执行哪个状态 handler ──
+    // ── status dispatcher: decides which handler runs ──
     statusDispatcher: (peek, status) => status,
 
-    // ── 状态处理函数 ──
+    // ── state handlers ──
     idle: (state, peek, api) => {
         api.switchStatus('processing', { effect: 'push', param: ['task-001'] });
     },
@@ -84,10 +84,10 @@ const ss = createStateStack({
         api.switchStatus('done', { effect: 'pop' });
     },
     done: (state, peek, api) => {
-        api.switchStatus(null, { effect: 'run' }); // {effect:'run'} 控制权回传，循环终止
+        api.switchStatus(null, { effect: 'run' }); // control returns, loop ends
     },
 
-    // ── 初始化（createStateStack() 调用时立即执行） ──
+    // ── init (runs immediately on createStateStack()) ──
     init: (state, push) => { state.status = 'idle'; },
 });
 
@@ -95,40 +95,41 @@ ss.run();
 console.log(ss.readState()); // { status: null, resultData: { done: true } }
 ```
 
-**执行流程：**
+**Execution flow:**
 ```
 init → status = 'idle'
-  → idle handler: switchStatus('processing', push) → 栈压入 'task-001'
-  → processing handler: switchStatus('done', pop) → 弹栈
-  → done handler: switchStatus(null, run) → 控制权回传，循环终止
+  → idle handler: switchStatus('processing', push) → push 'task-001' onto stack
+  → processing handler: switchStatus('done', pop) → pop stack
+  → done handler: switchStatus(null, run) → control returns, loop ends
 ```
 
 ---
 
-## 文档
+## Documentation
 
-| 文档 | 内容 |
-|------|------|
-| **[使用指南](./docs/usage-guide.md)** | 完整的使用示例：peek、statusDispatcher、effect、受限函数、子栈、模块链、真实场景 |
-| **[核心概念](./docs/core-concepts.md)** | peek 的本质、statusDispatcher 职责、受限函数设计哲学、effect 语义 |
-| **[模块链（Refinement）](./docs/module-chain.md)** | AOP 式函数覆写：为什么叫 refine、单模块/多模块/链式语法、适用场景 |
-| **[API 参考](./docs/api-reference.md)** | 完整接口签名、类型定义、限制规则、错误情况 |
-
----
-
-## 源码结构
-
-```
-src/`n├── Stack.ts                  # 原始栈 + 状态原型（simplest 层）
-├── funcTransformer.ts        # overwriteChain 函数复合（reduce）
-├── closureService.ts         # 模块链存储
-├── funcTimer.ts              # 受限函数计数器包装
-├── createStateStack.ts       # 入口：模块链 / 实例创建双模式
-└── createStateStackCore.ts   # 核心工厂：四层作用域 + 运行循环
-```
+| Doc | Content |
+|-----|---------|
+| **[Usage Guide (Chinese)](./docs/usage-guide.md)** | Full examples: peek, statusDispatcher, effect, restricted functions, child stacks, module chain, real-world scenarios |
+| **[Core Concepts (Chinese)](./docs/core-concepts.md)** | The nature of peek, statusDispatcher responsibilities, restricted function design philosophy, effect semantics |
+| **[Module Chain / Refinement (Chinese)](./docs/module-chain.md)** | AOP-style function overwriting: what "refine" means, single/multi/chain syntax, use cases |
+| **[API Reference (Chinese)](./docs/api-reference.md)** | Complete interface signatures, type definitions, restrictions, error conditions |
 
 ---
 
-## 协议
+## Source Structure
+
+```
+src/
+├── Stack.ts                  # raw stack + state prototype (simplest layer)
+├── funcTransformer.ts        # overwriteChain function composition (reduce)
+├── closureService.ts         # module chain storage
+├── funcTimer.ts              # restricted function call counter wrapper
+├── createStateStack.ts       # entry: module chain / instance creation (dual mode)
+└── createStateStackCore.ts   # core factory: 4-layer scope + run loop
+```
+
+---
+
+## License
 
 [Apache 2.0](./LICENSE)
