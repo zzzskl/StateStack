@@ -1,44 +1,44 @@
-# 模块链（Refinement）— 函数覆写系统
+# Module Chain (Refinement) — Function Overwriting System
 
-> 本文档详解 StateStack 的模块链机制。完整的运行示例见[使用指南](./usage-guide.md#模块链refinementaop-式函数覆写)。
+> This document details StateStack's module chain mechanism. For complete runnable examples, see the [Usage Guide](./usage-guide.md#module-chainrefinementaop-style-function-overwriting).
 
 ---
 
-## 为什么叫 refine？
+## Why the Name "refine"?
 
-`refineCreateStateStack` 中的 **`refine` 取 re-define（重新定义）之意**，不是"精炼/提纯"。
+`refineCreateStateStack` takes **`refine` to mean re-define**, not "purify" or "distill."
 
-它的含义是：**保存当前层某个函数的实现，在其周围包裹新逻辑，从而重新定义它的行为**——就像给一个函数套上一层新的"外皮"。
+Its meaning is: **preserve the implementation of a function at the current layer, wrap new logic around it, and thus redefine its behavior** — like putting a new "skin" around a function.
 
 ```
-原有 pop 函数
+Original pop function
   ┌──────────────────────┐
-  │ 做一些事            │
-  │ originalPop()        │     ← 模块链包裹后
-  │ 做一些事            │
+  │  do something       │
+  │  originalPop()       │     ← after module chain wrapping
+  │  do something       │
   └──────────────────────┘
            ↓
   ┌──────────────────────┐
-  │ 日志: "pop before"  │     ← 模块 A 注入的横切逻辑
+  │  log: "pop before"  │     ← cross-cutting logic injected by Module A
   │  ┌────────────────┐ │
-  │  │ originalPop()  │ │     ← 原始逻辑不变
+  │  │ originalPop()  │ │     ← original logic unchanged
   │  └────────────────┘ │
-  │ 日志: "pop after"   │     ← 模块 A 注入的横切逻辑
+  │  log: "pop after"   │     ← cross-cutting logic injected by Module A
   └──────────────────────┘
 ```
 
-> 如果你熟悉 Express/Koa 的中间件或 Python 的装饰器，这个模式本质上是一样的——只是套在函数级别而非请求级别。
+> If you are familiar with Express/Koa middleware or Python decorators, the pattern is essentially the same — it's just applied at the function level rather than the request level.
 
 ---
 
-## 机制
+## Mechanism
 
-### 核心：overwriteChain
+### Core: overwriteChain
 
-模块链的实现基于一个简单的 `reduce`：
+The module chain is built on a simple `reduce`:
 
 ```js
-// funcTransformer.js — 核心逻辑
+// funcTransformer.js — core logic
 export function transformer(originalFunc, overwriteChain) {
     if (!overwriteChain || overwriteChain.length === 0) {
         return originalFunc;
@@ -47,11 +47,11 @@ export function transformer(originalFunc, overwriteChain) {
 }
 ```
 
-`overwriteChain` 是一个数组，每个元素是 `(prevFunc) => newFunc` 类型的函数。`reduce` 将它们从左到右逐层复合。
+`overwriteChain` is an array where each element is a `(prevFunc) => newFunc` function. `reduce` composes them from left to right, layer by layer.
 
-### 存储：closureService
+### Storage: closureService
 
-`closureService.js` 维护了 6 个函数的覆写链，各自独立：
+`closureService.js` maintains overwrite chains for 6 functions, each independent:
 
 ```js
 const chains = {
@@ -64,33 +64,33 @@ const chains = {
 };
 ```
 
-调用 `closure.push(refinementObject)` 时，每个非空字段被追加到对应的 chain 中。
+When `closure.push(refinementObject)` is called, each non-null field is appended to its corresponding chain.
 
-### 触发条件
+### Trigger Condition
 
-`createStateStack` 有两种模式，由参数是否含有 `state` 字段区分：
+`createStateStack` has two modes, distinguished by whether the parameter contains a `state` field:
 
-| 模式 | 参数特征 | 行为 |
-|------|----------|------|
-| **定义模式** | 含 `state` 字段 | 直接创建实例 |
-| **模块链模式** | 不含 `state` 字段 | 将参数存入 closure，返回新的柯里化 `createStateStack` |
+| Mode | Parameter Feature | Behavior |
+|------|-------------------|----------|
+| **Definition Mode** | Contains `state` field | Creates an instance directly |
+| **Module Chain Mode** | Does NOT contain `state` field | Stores the parameter in closure, returns a new curried `createStateStack` |
 
 ```js
-// 定义模式
+// Definition mode
 createStateStack({ state: { ... }, ... })           → StateStackInstance
 
-// 模块链模式
+// Module chain mode
 createStateStack({ pop: (prev) => ... })             → CurriedCreateStateStack
 createStateStack({ pop: (prev) => ... })({ state: ... }) → StateStackInstance
 ```
 
 ---
 
-## 用法
+## Usage
 
-### 单模块
+### Single Module
 
-在一个模块中覆写一个函数：
+Overwrite a function in a single module:
 
 ```js
 // moduleA.js
@@ -98,31 +98,31 @@ import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
 
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
-        // 在原有 pop 之前/之后做额外的事
+        // Do extra work before/after the original pop
         console.log('[moduleA] pop before');
-        prevPop();                           // 调用原来的 pop
+        prevPop();                           // call the original pop
         console.log('[moduleA] pop after');
     },
 }));
 ```
 
-最终使用者（main.js）导入 `moduleA.js` 的 `createStateStack`，完全不知道模块链的存在。
+The end user (main.js) imports `createStateStack` from `moduleA.js`, completely unaware of the module chain.
 
-### 多模块叠加
+### Multiple Module Layering
 
-多个模块可以链式叠加，每个模块只覆写自己关心的函数：
+Multiple modules can be chained, each overwriting only the functions it cares about:
 
 ```
-moduleA 覆写 pop
-  → moduleB 覆写 push（基于 moduleA 导出的 createStateStack）
-    → 最终使用者导入 moduleB
+moduleA overwrites pop
+  → moduleB overwrites push (based on moduleA's exported createStateStack)
+    → end user imports moduleB
 ```
 
-覆写的复合顺序与模块链的添加顺序一致，从左到右。
+The composition order follows the module chain addition order, left to right.
 
-### 链式语法
+### Chained Syntax
 
-多个覆写可以在一个表达式中连续叠加：
+Multiple overwrites can be applied in a single expression:
 
 ```js
 import { refineCreateStateStack, createStateStack as core } from 'state-stack';
@@ -132,96 +132,96 @@ const createStateStack = core(refineCreateStateStack({ pop: logPop }))
                            (refineCreateStateStack({ peek: logPeek }));
 ```
 
-相当于先应用 `logPop`，再应用 `logPush`，最后应用 `logPeek`。
+This applies `logPop` first, then `logPush`, then `logPeek`.
 
-### `refineCreateStateStack` 是什么？
+### What is `refineCreateStateStack`?
 
-它只是一个**恒等函数**（identity function），输入什么就返回什么。它的作用是提供**视觉标识**：
+It is just an **identity function** — input equals output. Its purpose is to serve as a **visual marker**:
 
-- 让读者一眼看出这是在"重新定义"某个函数
-- 在 TypeScript 中提供类型推断支持
-- 不加它效果一样，但加了语义更清晰
+- Lets readers immediately identify that this is "redefining" a function
+- Provides TypeScript type inference support
+- It works the same without it, but adding it makes the intent clearer
 
 ```js
-// 不加 refineCreateStateStack 也能工作，但可读性差
+// Works without refineCreateStateStack, but readability suffers
 createStateStack({ pop: (prev) => () => { /* ... */ prev(); } });
 
-// 加 refineCreateStateStack，意图一目了然
+// With refineCreateStateStack, intent is obvious at a glance
 createStateStack(refineCreateStateStack({ pop: (prev) => () => { /* ... */ prev(); } }));
 ```
 
 ---
 
-## 可覆写的函数
+## Overwritable Functions
 
-| 函数 | 签名 | 说明 |
-|------|------|------|
-| `pop` | `(prevPop) => () => unknown` | 弹栈操作，返回弹出的值 |
-| `push` | `(prevPush) => (data) => void` | 入栈操作 |
-| `peek` | `(prevPeek) => () => unknown` | 读取栈顶 |
-| `switchStatus` | `(prevSwitchStatus) => (...args: unknown[]) => void` | 状态切换 |
-| `writeResultData` | `(prevWriteResultData) => (value) => void` | 写入结果数据 |
-| `writeExtra` | `(prevWriteExtra) => (value) => void` | 写入附加数据 |
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `pop` | `(prevPop) => () => unknown` | Pop operation, returns the popped value |
+| `push` | `(prevPush) => (data) => void` | Push operation |
+| `peek` | `(prevPeek) => () => unknown` | Read stack top |
+| `switchStatus` | `(prevSwitchStatus) => (...args: unknown[]) => void` | State switch |
+| `writeResultData` | `(prevWriteResultData) => (value) => void` | Write result data |
+| `writeExtra` | `(prevWriteExtra) => (value) => void` | Write extra data |
 
 ---
 
-## 适用场景
+## Use Cases
 
-### 日志 / 审计
+### Logging / Auditing
 
-在每次 push/pop 时记录操作轨迹，对业务代码完全透明。
+Record operation traces on every push/pop, completely transparent to business code.
 
-### 缓存
+### Caching
 
-覆写 `peek` 或 `push`，在栈操作前后检查缓存：
+Overwrite `peek` or `push` to check a cache before/after stack operations:
 
 ```js
 createStateStack(refineCreateStateStack({
     push: (prevPush) => (data) => {
-        if (cache.has(data)) return;  // 缓存命中，不压栈
+        if (cache.has(data)) return;  // cache hit, skip push
         prevPush(data);
     },
 }));
 ```
 
-### 权限检查
+### Permission Checking
 
-在 `switchStatus` 前校验当前用户是否有权进入目标状态。
+Validate whether the current user is authorized to enter the target state before `switchStatus`.
 
-### 埋点 / 监控
+### Telemetry / Monitoring
 
-在 `pop` 时记录耗时、在 `switchStatus` 时上报状态变更事件。
+Record timing on `pop`, report state change events on `switchStatus`.
 
 ---
 
-## 与定义对象的关系
+## Relationship with the Definition Object
 
-模块链覆写的函数和定义对象中同名的函数**不是同一层**的。它们的执行顺序是：
+Functions overwritten in the module chain and functions with the same name in the definition object are **not at the same layer**. Their execution order is:
 
 ```
-用户定义对象中的函数（highest level）
-    ↓ 调用 simpleXxx
-模块链覆写的函数（middleware layer）
+User-defined object functions (highest level)
+    ↓ call simpleXxx
+Module chain overwritten functions (middleware layer)
     ↓ transformer.reduce
-原始栈函数（simplest level）
+Original stack functions (simplest level)
 ```
 
-以 `pop` 为例：
+Using `pop` as an example:
 
 ```
-定义对象中的 pop:
-  (simplePop, writeResultData) => { 写入结果; simplePop(); }
+Definition object's pop:
+  (simplePop, writeResultData) => { write result; simplePop(); }
 
-模块链中的 pop:
-  (prevPop) => () => { 日志; prevPop(); 日志; }
+Module chain's pop:
+  (prevPop) => () => { log; prevPop(); log; }
 
-执行顺序：
-  定义 pop → simplePop（即：模块链复合 → 原始栈 pop）
+Execution order:
+  definition pop → simplePop (i.e.: module chain composition → original stack pop)
 ```
 
 ---
 
-## 延伸阅读
+## Further Reading
 
-- [使用指南 - 模块链](./usage-guide.md#模块链refinementaop-式函数覆写) — 完整运行示例
-- [核心概念](./core-concepts.md) — peek、statusDispatcher、受限函数
+- [Usage Guide - Module Chain](./usage-guide.md#module-chainrefinementaop-style-function-overwriting) — Complete runnable examples
+- [Core Concepts](./core-concepts.md) — peek, statusDispatcher, restricted functions

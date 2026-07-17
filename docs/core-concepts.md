@@ -1,198 +1,199 @@
-# 核心概念
+# Core Concepts
 
-> 本文档深入解释 StateStack 的四个核心概念，帮助你理解"为什么这样设计"而非仅仅"怎么用"。
-> 完整的示例请见[使用指南](./usage-guide.md)。
+> This document explains the four core concepts of StateStack in depth, helping you understand "why it was designed this way" rather than just "how to use it."
+> For complete examples, see the [Usage Guide](./usage-guide.md).
 
 ---
 
-## 1. `peek` — 栈与状态机的桥梁
+## 1. `peek` — The Bridge Between Stack and State Machine
 
-### 它解决了什么问题？
+### What Problem Does It Solve?
 
-在普通状态机中，当前状态决定了做什么。但在 StateStack 中，**栈顶的内容**同样应该参与决策——因为栈代表了"当前正在处理的工作单元"。
+In a typical state machine, the current state determines what to do. But in StateStack, **the content of the stack top** should also participate in decision-making — because the stack represents "the work unit currently being processed."
 
-考虑一个递归解析的场景：每一层委派是一个栈帧。当状态机处理某一层时，它需要读取**当前层的栈顶**（即当前正在处理的工作单元）来决定下一步。这就是 `peek` 的职责。
+Consider a recursive parsing scenario: each level of delegation is a stack frame. When the state machine processes a level, it needs to read **the stack top of the current level** (i.e., the work unit currently being processed) to decide the next step. That's the responsibility of `peek`.
 
-### peek 出现的位置
+### Where Peek Appears
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  definition 对象                                       │
+│  definition object                                    │
 │                                                       │
 │  ┌─ statusDispatcher(peek, status) → statusName ────┐ │
-│  │   ① 在决定状态时可以感知栈顶                      │ │
+│  │   ① Can sense the stack top when deciding state   │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                       │
 │  ┌─ statusHandler(state, peek, api) ───────────────┐ │
-│  │   ② 在处理状态时可以读取栈顶数据                  │ │
+│  │   ② Can read stack top data when handling state  │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                       │
 │  ┌─ peek: (simplePeek) => value ───────────────────┐ │
-│  │   ③ 用户可以自定义 peek 逻辑（如缓存、转换）      │ │
+│  │   ③ Users can customize peek logic (caching,     │ │
+│  │      transforming, etc.)                         │ │
 │  └──────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 数据流
+### Data Flow
 
 ```
-run 循环
+run loop
   │
-  ├─ statusDispatcher(peek, status)   ← 调用 peek() 获取栈顶
+  ├─ statusDispatcher(peek, status)   ← calls peek() to get stack top
   │     ↓
-  ├─ 返回 statusName
+  ├─ returns statusName
   │     ↓
-  ├─ handler(state, peek, api)       ← handler 内再次调用 peek()
+  ├─ handler(state, peek, api)       ← handler calls peek() again
   │     ↓
   └─ api.switchStatus(nextStatus, effect)
 ```
 
-### 关键理解
+### Key Understanding
 
-- `peek` 和 `status` 是两个独立的信息源：前者来自栈，后者来自状态机
-- `statusDispatcher` 同时拿到两者，可以做出比纯状态机更丰富的路由决策
-- handler 中的 `peek` 主要用于读取当前工作单元的数据，而非改变状态
-
----
-
-## 2. `statusDispatcher` — 职责边界：只判断，不执行
-
-### 它做什么
-
-`statusDispatcher(peek, status)` 的职责只有一个：**返回当前应该执行哪个状态 handler 的名称**。它不操作栈、不修改状态、不产生副作用。
-
-```
-statusDispatcher 的输入：
-  - peek()   → 栈顶元素（当前工作单元）
-  - status   → 当前状态名（字符串或 null）
-
-statusDispatcher 的输出：
-  - statusName (string)  → 执行对应的 handler
-  - null                → 结束状态机
-```
-
-### 典型模式
-
-| 模式 | 实现 | 适用场景 |
-|------|------|----------|
-| 简单流转 | `(peek, status) => status` | 线性流水线 |
-| peek 驱动 | 检查 `peek()` 的值决定下一状态 | 根据工作单元类型路由 |
-
-### 不做的事
-
-- ❌ 不调用 `push` / `pop`
-- ❌ 不修改 `status`
-- ❌ 不产生副作用
-- ❌ 不执行业务逻辑
-
-这个限制是刻意设计的：`statusDispatcher` 只做**路由决策**，执行交给 handler。这样做使得路由逻辑可测试、可追踪。
+- `peek` and `status` are two independent sources of information: the former comes from the stack, the latter from the state machine
+- `statusDispatcher` receives both, enabling richer routing decisions than a pure state machine
+- The `peek` in handlers is primarily used for reading the current work unit's data, not for changing state
 
 ---
 
-## 3. 受限函数 — "一轮循环的影响是确定的"
+## 2. `statusDispatcher` — Responsibility Boundary: Judge Only, Don't Execute
 
-### 设计哲学
+### What It Does
 
-`switchStatus`、`writeResultData`、`writeExtra` 各自在**一轮 run 循环中最多调用一次**。超出则抛错。
-
-这不是防呆机制，而是核心设计原则：
-
-> **一轮状态循环能承载多少逻辑、产生多少影响，应该是确定的。**
-
-### 为什么？
-
-没有这个限制，会出现：
+`statusDispatcher(peek, status)` has a single responsibility: **return the name of the state whose handler should execute**. It does not manipulate the stack, modify state, or produce side effects.
 
 ```
-// 有问题的模式（不受限时可能发生）
+statusDispatcher inputs:
+  - peek()   → stack top element (current work unit)
+  - status   → current status name (string or null)
+
+statusDispatcher outputs:
+  - statusName (string)  → execute the corresponding handler
+  - null                → terminate the state machine
+```
+
+### Typical Patterns
+
+| Pattern | Implementation | Use Case |
+|---------|----------------|----------|
+| Simple passthrough | `(peek, status) => status` | Linear pipelines |
+| Peek-driven | Inspect `peek()` value to decide next state | Route based on work unit type |
+
+### What It Does NOT Do
+
+- ❌ Does not call `push` / `pop`
+- ❌ Does not modify `status`
+- ❌ Does not produce side effects
+- ❌ Does not execute business logic
+
+This restriction is intentional: `statusDispatcher` only performs **routing decisions**; execution is left to handlers. This makes the routing logic testable and traceable.
+
+---
+
+## 3. Restricted Functions — "The Impact of One Cycle is Deterministic"
+
+### Design Philosophy
+
+`switchStatus`, `writeResultData`, and `writeExtra` may each be called **at most once per run loop cycle**. Exceeding this throws an error.
+
+This is not a foolproofing mechanism — it is a core design principle:
+
+> **How much logic a single status cycle can carry, and how much impact it can produce, should be deterministic.**
+
+### Why?
+
+Without this restriction, the following could happen:
+
+```
+// Problematic pattern (possible without restriction)
 dangerous: (state, peek, api) => {
     api.switchStatus('a');
     api.writeResultData({ x: 1 });
-    api.switchStatus('b');        // 覆盖了上一条 switchStatus
-    api.writeResultData({ y: 2 }); // 覆盖了上一条 writeResultData
+    api.switchStatus('b');        // overwrites the previous switchStatus
+    api.writeResultData({ y: 2 }); // overwrites the previous writeResultData
     api.switchStatus('c');
-    // 最终效果是什么？只有最后一条有效，前面三条是垃圾操作
+    // What is the net effect? Only the last one matters — the rest are garbage operations
 }
 ```
 
-有了限制：
+With the restriction:
 
-- 每个 handler 在一轮中只能做**一件确定的事**：切到一个状态、写一次结果、写一次附加数据
-- 调用者可以确定一个 handler 的可观测影响上限
-- 组合多个 handler 时不用担心"某一步悄悄做了多余的事"
+- Each handler can do **one deterministic thing** per cycle: switch to a state, write a result, or write extra data
+- Callers can determine the observable impact upper bound of any handler
+- When composing multiple handlers, there is no fear of "one step silently doing extra things"
 
-### 机制
+### Mechanism
 
 ```
-run 循环开始 → checkTimes() 记录快照
+run loop starts → checkTimes() records snapshot
        ↓
-handler 执行 → switchStatus / writeResultData / writeExtra 每次调用计数 +1
+handler executes → switchStatus / writeResultData / writeExtra each increment counter +1
        ↓
-run 循环结束 → checkTimes() 取新快照，比对增量
+run loop ends → checkTimes() takes new snapshot, compares delta
        ↓
-增量 > 1 → 抛错
-增量 = 0 或 1 → 正常
+delta > 1 → throw error
+delta = 0 or 1 → OK
 ```
 
-### 不受限的操作
+### Unrestricted Operations
 
-`createChildStateStack` 和 `childStateStack` 不受限制，因为它们不改变当前栈的状态。
+`createChildStateStack` and `childStateStack` are not restricted, because they do not change the current stack's state.
 
 ---
 
-## 4. Effect 三种操作的语义
+## 4. The Semantics of the Three Effect Operations
 
-### 为什么只有三种？
+### Why Only Three?
 
-StateStack 的洞察是：大多数"逐层深入"的工作流，其控制流操作可以归结为三种原语：
+StateStack's insight is that most "drill-down, layer-by-layer" workflows can be reduced to three primitives:
 
-| 操作 | 栈的变化 | 工作流含义 | 
-|------|----------|------------|
-| **push** | 栈顶压入新元素 | 进入子任务，当前状态挂起 |
-| **pop** | 栈顶弹出 | 子任务完成，回到上一层 |
-| **run** | 栈不变 | 控制权转移，执行另一个栈 |
+| Operation | Stack Change | Workflow Meaning |
+|-----------|-------------|------------------|
+| **push** | New element pushed onto stack top | Enter a sub-task; current state is suspended |
+| **pop** | Stack top is popped | Sub-task complete; return to the previous layer |
+| **run** | Stack unchanged | Control transfer; execute another stack |
 
-这三种操作覆盖了递归解析、多阶段流水线、嵌套事务等场景中的所有状态转移模式。
+These three operations cover all state transition patterns in scenarios like recursive parsing, multi-stage pipelines, and nested transactions.
 
-### push — 进入更深层级
+### push — Go Deeper
 
 ```
-栈状态：         handler 执行：
+Stack state:      Handler execution:
 [item1]         api.switchStatus('next', { effect: 'push', param: [item2] })
-[item1, item2]  ← item2 入栈，下一轮 handler 可以看到 item2
+[item1, item2]  ← item2 pushed; next handler sees item2
 ```
 
-push 意味着"当前工作没完，先压个新任务进来"。
+push means "current work isn't done yet, but let's push a new task in."
 
-### pop — 返回上层
+### pop — Return to Upper Layer
 
 ```
-栈状态：         handler 执行：
+Stack state:      Handler execution:
 [item1, item2]  api.switchStatus(null, { effect: 'pop' })
-[item1]         ← item2 弹出，回到 item1
+[item1]         ← item2 popped; back to item1
 ```
 
-pop 意味着"当前工作完成了，带着结果回上一层"。
+pop means "current work is done; return to the previous layer with results."
 
-### run — 控制权转移
+### run — Control Transfer
 
 ```
-当前栈执行 handler：
+Current stack handler:
   api.switchStatus('done', { effect: 'run' })
-    → 控制权回到 runParent 回调
-    → 或者执行子栈（{ effect: 'run', param: ['child', id] }）
+    → Control returns to the runParent callback
+    → Or executes a child stack ({ effect: 'run', param: ['child', id] })
 ```
 
-run 意味着"当前工作告一段落，把控制权交给外部"。
+run means "the current phase is done; hand control over to the outside."
 
-### 组合使用
+### Combining Operations
 
-这三个操作可以组合：push 后 pop、push 再 run、pop 后再 push……覆盖了嵌套工作流的所有控制流模式。
+These three operations can be combined: push then pop, push then run, pop then push again… covering all control flow patterns of nested workflows.
 
 ---
 
-## 延伸阅读
+## Further Reading
 
-- [使用指南](./usage-guide.md) — 完整的示例和教程
-- [模块链（Refinement）](./module-chain.md) — AOP 式函数覆写
-- [API 参考](./api-reference.md) — 接口签名和类型定义
+- [Usage Guide](./usage-guide.md) — Complete examples and tutorials
+- [Module Chain (Refinement)](./module-chain.md) — AOP-style function overwriting
+- [API Reference](./api-reference.md) — Interface signatures and type definitions

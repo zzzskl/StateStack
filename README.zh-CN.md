@@ -109,10 +109,10 @@ init → status = 'idle'
 
 | 文档 | 内容 |
 |------|------|
-| **[使用指南](./docs/usage-guide.md)** | 完整的使用示例：peek、statusDispatcher、effect、受限函数、子栈、模块链、真实场景 |
-| **[核心概念](./docs/core-concepts.md)** | peek 的本质、statusDispatcher 职责、受限函数设计哲学、effect 语义 |
-| **[模块链（Refinement）](./docs/module-chain.md)** | AOP 式函数覆写：为什么叫 refine、单模块/多模块/链式语法、适用场景 |
-| **[API 参考](./docs/api-reference.md)** | 完整接口签名、类型定义、限制规则、错误情况 |
+| **[使用指南](./docs/usage-guide.zh-CN.md)** | 完整的使用示例：peek、statusDispatcher、effect、受限函数、子栈、模块链、真实场景 |
+| **[核心概念](./docs/core-concepts.zh-CN.md)** | peek 的本质、statusDispatcher 职责、受限函数设计哲学、effect 语义 |
+| **[模块链（Refinement）](./docs/module-chain.zh-CN.md)** | AOP 式函数覆写：为什么叫 refine、单模块/多模块/链式语法、适用场景 |
+| **[API 参考](./docs/api-reference.zh-CN.md)** | 完整接口签名、类型定义、限制规则、错误情况 |
 
 ---
 

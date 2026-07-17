@@ -111,10 +111,11 @@ init → status = 'idle'
 
 | Doc | Content |
 |-----|---------|
-| **[Usage Guide (Chinese)](./docs/usage-guide.md)** | Full examples: peek, statusDispatcher, effect, restricted functions, child stacks, module chain, real-world scenarios |
-| **[Core Concepts (Chinese)](./docs/core-concepts.md)** | The nature of peek, statusDispatcher responsibilities, restricted function design philosophy, effect semantics |
-| **[Module Chain / Refinement (Chinese)](./docs/module-chain.md)** | AOP-style function overwriting: what "refine" means, single/multi/chain syntax, use cases |
-| **[API Reference (Chinese)](./docs/api-reference.md)** | Complete interface signatures, type definitions, restrictions, error conditions |
+| **[Usage Guide](./docs/usage-guide.md)** | Full examples: peek, statusDispatcher, effect, restricted functions, child stacks, module chain, real-world scenarios |
+| **[Core Concepts](./docs/core-concepts.md)** | The nature of peek, statusDispatcher responsibilities, restricted function design philosophy, effect semantics |
+| **[Module Chain / Refinement](./docs/module-chain.md)** | AOP-style function overwriting: what "refine" means, single/multi/chain syntax, use cases |
+| **[API Reference](./docs/api-reference.md)** | Complete interface signatures, type definitions, restrictions, error conditions |
+| 📖 **中文文档** | [使用指南](./docs/usage-guide.zh-CN.md) · [核心概念](./docs/core-concepts.zh-CN.md) · [模块链](./docs/module-chain.zh-CN.md) · [API 参考](./docs/api-reference.zh-CN.md) |
 
 ---
 

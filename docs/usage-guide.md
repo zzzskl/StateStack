@@ -1,10 +1,10 @@
-# 使用指南
+# Usage Guide
 
-> 本文档包含 StateStack 的完整使用示例和详细说明。如果你是第一次接触，建议先阅读 [README](../README.md) 的快速开始。
+> This document contains complete usage examples and detailed explanations of StateStack. If this is your first time, we recommend reading the [Quick Start](../README.md) first.
 
 ---
 
-## 安装
+## Installation
 
 ```bash
 npm install state-stack
@@ -16,34 +16,34 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 例 1-1：最小状态机（入门）
+### Example 1-1: Minimal State Machine (Getting Started)
 
-下面是一个三状态（`idle → processing → done`）的最小状态机。它展示了完整的栈操作流程：**入栈 → 处理 → 弹栈 → 结束**。
+Below is a minimal three-state (`idle → processing → done`) state machine. It demonstrates the full stack operation flow: **push → process → pop → finish**.
 
 ```js
 import { createStateStack } from 'state-stack';
 
 const ss = createStateStack({
-    // ── 状态类型声明 ──
+    // ── state type declaration ──
     state: {
-        status: ['idle', 'processing', 'done'],  // 所有可能的 status 值
-        resultData: { done: false },              // resultData 字段结构
+        status: ['idle', 'processing', 'done'],  // all possible status values
+        resultData: { done: false },              // resultData field structure
     },
 
-    // ── 栈操作定义 ──
-    peek: (peek) => peek(),                       // 读取栈顶
-    push: (push, data) => push(data),             // 入栈
-    pop: (pop, writeResultData) => {              // 弹栈 + 写入结果
+    // ── stack operation definitions ──
+    peek: (peek) => peek(),                       // read stack top
+    push: (push, data) => push(data),             // push to stack
+    pop: (pop, writeResultData) => {              // pop + write result
         writeResultData({ done: true });
         pop();
     },
 
-    // ── 状态分发：决定当前执行哪个状态 handler ──
+    // ── status dispatcher: decides which handler runs ──
     statusDispatcher: (peek, status) => status,
 
-    // ── 状态处理函数 ──
+    // ── state handlers ──
     idle: (state, peek, api) => {
         api.switchStatus('processing', { effect: 'push', param: ['task-001'] });
     },
@@ -51,10 +51,10 @@ const ss = createStateStack({
         api.switchStatus('done', { effect: 'pop' });
     },
     done: (state, peek, api) => {
-        api.switchStatus(null, { effect: 'run' }); // null 状态 = 结束
+        api.switchStatus(null, { effect: 'run' }); // null status = end
     },
 
-    // ── 初始化（createStateStack() 调用时立即执行） ──
+    // ── init (runs immediately on createStateStack()) ──
     init: (state, push) => { state.status = 'idle'; },
 });
 
@@ -62,25 +62,25 @@ ss.run();
 console.log(ss.readState()); // { status: null, resultData: { done: true } }
 ```
 
-**执行流程：**
+**Execution flow:**
 ```
 init → status = 'idle'
-  → idle handler: switchStatus('processing', push) → 栈压入 'task-001'
-  → processing handler: switchStatus('done', pop) → 弹栈
-  → done handler: switchStatus(null, run) → 结束
+  → idle handler: switchStatus('processing', push) → push 'task-001' onto stack
+  → processing handler: switchStatus('done', pop) → pop stack
+  → done handler: switchStatus(null, run) → finish
 ```
 
-### 例 1-2：带 runParent 回传控制权
+### Example 1-2: Returning Control with runParent
 
-`effect: 'run'` 能将控制权回传给调用者。`createStateStack` 的第二个参数 `runParent` 就是接收这个回传的回调。
+`effect: 'run'` can return control to the caller. The second parameter of `createStateStack`, `runParent`, is the callback that receives this control transfer.
 
 ```js
 import { createStateStack } from 'state-stack';
 
 const ss = createStateStack({
     state: {
-        status: ['start', 'end'],                  // 状态：start → end → null
-        resultData: { result: 'ok' },              // 最终 { result: 'ok' }
+        status: ['start', 'end'],                  // states: start → end → null
+        resultData: { result: 'ok' },              // final { result: 'ok' }
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -96,19 +96,19 @@ const ss = createStateStack({
     },
     end: (state, peek, api) => {
         console.log('[end]');
-        api.switchStatus(null, { effect: 'run' }); // 回传控制权
+        api.switchStatus(null, { effect: 'run' }); // return control
     },
 
     init: (state, push) => { state.status = 'start'; },
 }, () => {
-    // runParent — 当栈内 effect: 'run' 触发时，控制权回到这里
+    // runParent — when effect: 'run' is triggered, control returns here
     console.log('[runParent] control returned to creator');
 });
 
 console.log('=== run ===');
 ss.run();
 console.log('=== done ===');
-// 输出:
+// Output:
 //   [start]
 //   [end]
 //   [runParent] control returned to creator
@@ -117,54 +117,54 @@ console.log('=== done ===');
 
 ---
 
-## 状态格式约定
+## State Format Convention
 
-StateStack 中 `state` 字段是一个 **类型文档约定**，它**不参与初始化**，纯粹用于告诉阅读者这个状态机有哪些状态和字段。
+The `state` field in StateStack is a **type documentation convention**. It does **not participate in initialization** — it purely tells the reader what states and fields the state machine has.
 
 ```js
 state: {
-    status: ['idle', 'processing', 'done'],   // ← 列出所有可能的 status 值
-    resultData: { done: false },               // ← 展示 resultData 的字段结构
+    status: ['idle', 'processing', 'done'],   // ← list all possible status values
+    resultData: { done: false },               // ← show the structure of resultData
 }
 ```
 
-| 字段 | 声明格式 | 运行时实际类型 | 说明 |
-|------|----------|---------------|------|
-| `status` | `string[]`（枚举所有状态值） | `string \| null` | `null` = 状态机结束 |
-| `resultData` | `object`（展示字段结构） | `object` | 由 `writeResultData()` 覆盖写入 |
-| `extra`（可选） | `object`（展示字段结构） | `object` | 由 `writeExtra()` 覆盖写入 |
+| Field | Declaration Format | Runtime Type | Description |
+|-------|-------------------|--------------|-------------|
+| `status` | `string[]` (enum all status values) | `string \| null` | `null` = state machine terminated |
+| `resultData` | `object` (show field structure) | `object` | Overwritten by `writeResultData()` |
+| `extra` (optional) | `object` (show field structure) | `object` | Overwritten by `writeExtra()` |
 
-**运行时数据流示例：**
+**Runtime data flow example:**
 
 ```
 init → state = { status: 'idle',     resultData: {} }
   → idle handler → switchStatus('processing', { effect: 'push' })
   → state = { status: 'processing', resultData: {} }
   → processing handler → writeResultData({ done: true }) → switchStatus(null, { effect: 'pop' })
-  → state = { status: null,          resultData: { done: true } }   ← 结束
+  → state = { status: null,          resultData: { done: true } }   ← finished
 ```
 
-> `state` 的声明格式来源于设计草稿 v1 — `status: []` 表示「可接受的状态值集合」，`resultData: {}` 表示「结果数据的字段容器」。
-> 这类似于 TypeScript 的类型标注：声明时描述形状，运行时由逻辑填充。
+> The `state` declaration format originates from design draft v1 — `status: []` means "the set of acceptable status values", `resultData: {}` means "the container for result data fields."
+> This is analogous to TypeScript type annotations: declare the shape at definition time, fill in values at runtime.
 
 ---
 
-## 核心概念
+## Core Concepts
 
-### 1. `peek` — 读取栈顶
+### 1. `peek` — Reading the Stack Top
 
-`peek` 是栈操作和状态机之间的桥梁。它在三个地方出现：
-- **定义对象中的 `peek` 字段**：自定义读取逻辑
-- **`statusDispatcher` 的第一参数**：在决定状态时可以感知栈顶
-- **状态 handler 的第二参数**：在处理状态时可以读取栈顶
+`peek` is the bridge between stack operations and the state machine. It appears in three places:
+- **The `peek` field in the definition object**: custom read logic
+- **The first parameter of `statusDispatcher`**: can sense the stack top when deciding state
+- **The second parameter of a state handler**: can read the stack top when handling state
 
-#### 例 2-1：peek 读取栈顶数据
+#### Example 2-1: peek Reading Stack Top Data
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['start', 'process'],              // 状态：start → process → null
-        resultData: {},                             // 无结果写入
+        status: ['start', 'process'],              // states: start → process → null
+        resultData: {},                             // no result written
     },
     peek: (peek) => {
         const top = peek();
@@ -179,7 +179,7 @@ const ss = createStateStack({
         api.switchStatus('process', { effect: 'push', param: ['my-data'] });
     },
     process: (state, peek, api) => {
-        const top = peek();               // 读取当前栈顶
+        const top = peek();               // read current stack top
         console.log('processing:', top);  // processing: my-data
         api.switchStatus(null, { effect: 'pop' });
     },
@@ -190,20 +190,20 @@ const ss = createStateStack({
 ss.run();
 ```
 
-#### 例 2-2：peek 与 statusDispatcher 配合决定状态
+#### Example 2-2: peek and statusDispatcher Working Together
 
-`statusDispatcher` 的第一个参数就是 `peek`。你可以根据栈顶元素来动态决定进入哪个状态。
+The first parameter of `statusDispatcher` is `peek`. You can dynamically decide which state to enter based on the stack top element.
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['start', 'decide', 'fastTrack'],  // 状态流转
-        resultData: {},                             // 无结果写入
+        status: ['start', 'decide', 'fastTrack'],  // state flow
+        resultData: {},                             // no result written
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
     pop: (pop) => pop(),
-    // 根据栈顶元素的值来决定状态
+    // Decide state based on stack top value
     statusDispatcher: (peek, status) => {
         const top = peek();
         if (top && top.type === 'urgent') return 'fastTrack';
@@ -229,24 +229,24 @@ ss.run();
 
 ---
 
-### 2. `statusDispatcher` — 状态分发
+### 2. `statusDispatcher` — State Dispatch
 
-`statusDispatcher(peek, status)` 每次循环被调用，需要返回当前状态名称。参数 `status` 是当前状态名（字符串或 `null`）。返回值会作为 key 去 `definition` 中查找对应的 handler。
+`statusDispatcher(peek, status)` is called each cycle and must return the name of the current state. The `status` parameter is the current state name (string or `null`). The return value is used as a key to look up the corresponding handler in the `definition`.
 
-#### 例 2-3：基于 `status` 简单分发
+#### Example 2-3: Simple Dispatch Based on `status`
 
-最常见的用法 — 由 `switchStatus` 直接写入状态，`statusDispatcher` 读取当前状态名并返回。
+The most common usage — `switchStatus` directly writes the state, and `statusDispatcher` reads the current state name and returns it.
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['step1', 'step2'],                // 状态：step1 → step2 → null
-        resultData: {},                             // 无结果写入
+        status: ['step1', 'step2'],                // states: step1 → step2 → null
+        resultData: {},                             // no result written
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
     pop: (pop) => pop(),
-    statusDispatcher: (peek, status) => status,  // 直接返回状态名
+    statusDispatcher: (peek, status) => status,  // directly return the status name
 
     step1: (state, peek, api) => {
         api.switchStatus('step2');
@@ -261,15 +261,15 @@ const ss = createStateStack({
 ss.run();
 ```
 
-#### 例 2-4：基于 `peek()` 自定义分发
+#### Example 2-4: Custom Dispatch Based on `peek()`
 
-你可以基于栈顶内容做出复杂的分发逻辑，而不只是依赖当前状态名 `status`。
+You can make complex dispatch decisions based on stack top content, not just the current status name.
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['empty', 'processString', 'processNumber'],  // 状态流转
-        resultData: {},                                        // 无结果写入
+        status: ['empty', 'processString', 'processNumber'],  // state flow
+        resultData: {},                                        // no result written
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -302,27 +302,27 @@ ss.run();
 
 ---
 
-### 3. `api.switchStatus()` + Effect — 驱动栈操作
+### 3. `api.switchStatus()` + Effect — Driving Stack Operations
 
-`switchStatus(nextStatus, effect?)` 是状态机的心脏：
-- **`nextStatus`**：下一轮的状态名（`null` 表示结束）
-- **`effect`**：携带一个栈操作描述
+`switchStatus(nextStatus, effect?)` is the heart of the state machine:
+- **`nextStatus`**: the state name for the next cycle (`null` means finish)
+- **`effect`**: carries a stack operation descriptor
 
-| Effect | 含义 |
-|--------|------|
-| 无 `effect` | 纯状态切换，无栈操作 |
-| `{ effect: 'push', param: [data] }` | 将 `data` 入栈 |
-| `{ effect: 'pop' }` | 弹出栈顶 |
-| `{ effect: 'run' }` | 控制权回传（触发 `runParent`） |
-| `{ effect: 'run', param: ['child', id] }` | 运行指定子栈 |
+| Effect | Meaning |
+|--------|---------|
+| No `effect` | Pure state switch, no stack operation |
+| `{ effect: 'push', param: [data] }` | Push `data` onto the stack |
+| `{ effect: 'pop' }` | Pop the stack top |
+| `{ effect: 'run' }` | Return control (triggers `runParent`) |
+| `{ effect: 'run', param: ['child', id] }` | Run a specific child stack |
 
-#### 例 2-5：`effect: 'push'` — 入栈
+#### Example 2-5: `effect: 'push'` — Push
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['collect', 'summarize'],          // 状态：collect → summarize → null
-        resultData: {},                             // 无结果写入
+        status: ['collect', 'summarize'],          // states: collect → summarize → null
+        resultData: {},                             // no result written
     },
     peek: (peek) => peek(),
     push: (push, data) => { console.log('push:', data); push(data); },
@@ -330,7 +330,7 @@ const ss = createStateStack({
     statusDispatcher: (peek, status) => status,
 
     collect: (state, peek, api) => {
-        // 批量入栈
+        // batch push
         api.switchStatus('summarize', { effect: 'push', param: ['item1'] });
     },
     summarize: (state, peek, api) => {
@@ -345,13 +345,13 @@ ss.run();
 // push: item2
 ```
 
-#### 例 2-6：`effect: 'pop'` — 弹栈
+#### Example 2-6: `effect: 'pop'` — Pop
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['start', 'process'],              // 状态：start → process → null
-        resultData: { popped: 'task-X' },          // 最终 { popped: 'task-X' }
+        status: ['start', 'process'],              // states: start → process → null
+        resultData: { popped: 'task-X' },          // final { popped: 'task-X' }
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -366,7 +366,7 @@ const ss = createStateStack({
     },
     process: (state, peek, api) => {
         console.log('stack top:', peek());  // task-X
-        api.switchStatus(null, { effect: 'pop' });  // 弹栈并写入 resultData
+        api.switchStatus(null, { effect: 'pop' });  // pop and write resultData
     },
 
     init: (state, push) => { state.status = 'start'; },
@@ -376,14 +376,14 @@ ss.run();
 console.log(ss.readState().resultData); // { popped: 'task-X' }
 ```
 
-#### 例 2-7：`effect: 'run'` — 控制权回传
+#### Example 2-7: `effect: 'run'` — Returning Control
 
 ```js
-// 无子栈时，effect: 'run' 触发 runParent 回调
+// Without child stacks, effect: 'run' triggers the runParent callback
 const ss = createStateStack({
     state: {
-        status: ['a', 'b'],                        // 状态：a → b → null
-        resultData: {},                             // 无结果写入
+        status: ['a', 'b'],                        // states: a → b → null
+        resultData: {},                             // no result written
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -404,18 +404,18 @@ ss.run();
 
 ---
 
-## 状态处理函数详解
+## State Handler Deep Dive
 
-每个状态 handler 接收三个参数：`(state, peek, api)`。
+Each state handler receives three parameters: `(state, peek, api)`.
 
-### 例 3-1：handler 三参数完整演示
+### Example 3-1: Handler Three-Parameter Demo
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['demo'],                            // 状态：demo → null
-        resultData: { processed: null },              // 最终 { processed: top }
-        extra: { timestamp: 0 },                     // 最终 { timestamp: number }
+        status: ['demo'],                            // states: demo → null
+        resultData: { processed: null },              // final { processed: top }
+        extra: { timestamp: 0 },                     // final { timestamp: number }
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -423,101 +423,161 @@ const ss = createStateStack({
     statusDispatcher: (peek, status) => status,
 
     demo: (state, peek, api) => {
-        // ① state — 当前状态快照（只读）
+        // ① state — current state snapshot (read-only)
         console.log(state.status);
         console.log(state.resultData);
 
-        // ② peek — 读取栈顶
+        // ② peek — for reading stack top data
         const top = peek();
+        console.log('top:', top);
 
-        // ③ api — 操作方法集
-        api.writeResultData({ processed: top });    // 受限，每轮 ≤1
-        api.writeExtra({ timestamp: Date.now() });  // 受限，每轮 ≤1
-        api.switchStatus(null, { effect: 'pop' });  // 受限，每轮 ≤1
+        // ③ api — operations with restrictions
+        api.writeResultData({ processed: String(top) });
+        api.writeExtra({ timestamp: Date.now() });
+
+        // switchStatus — end
+        api.switchStatus(null, { effect: 'push', param: ['final-item'] });
     },
 
-    init: (state, push) => { state.status = 'demo'; },
+    init: (state, push) => { state.status = 'demo'; push('init-data'); },
 });
 
 ss.run();
 ```
 
-### API 方法速览
+### Example 3-2: State is Read-Only
 
-| 方法 | 限制 | 说明 |
-|------|------|------|
-| `api.switchStatus(nextStatus, effect?)` | **每轮 ≤1** | 切换状态 + 触发栈操作 |
-| `api.writeResultData(value)` | **每轮 ≤1** | 写入结果数据到 `state.resultData` |
-| `api.writeExtra(value)` | **每轮 ≤1** | 写入附加数据到 `state.extra` |
-| `api.createChildStateStack(def, id)` | 无限制 | 创建子栈 |
-| `api.childStateStack(id)` | 无限制 | 获取子栈句柄 |
+Modifying `state` directly within a handler has no effect on the state machine's actual status. Use `api.switchStatus()` to change status, use `api.writeResultData()` / `api.writeExtra()` to modify data.
+
+```js
+const ss = createStateStack({
+    state: {
+        status: ['modifyTest'],                      // state: modifyTest
+        resultData: { value: 'original' },            // final unchanged
+    },
+    peek: (peek) => peek(),
+    push: (push, data) => push(data),
+    pop: (pop) => pop(),
+    statusDispatcher: (peek, status) => status,
+
+    modifyTest: (state, peek, api) => {
+        // These modifications do not take effect
+        state.status = 'something-else';
+        state.resultData.value = 'modified';
+        console.log('state is:', state);  // only local variable changes
+
+        api.switchStatus(null);  // use API for actual changes
+    },
+
+    init: (state) => { state.status = 'modifyTest'; },
+});
+
+ss.run();
+console.log(ss.readState()); // { status: null, resultData: { value: 'original' } }
+```
 
 ---
 
-## 受限函数
+## Stack
 
-`switchStatus`、`writeResultData`、`writeExtra` 每轮状态循环中最多调用一次。这是设计核心——**一轮循环的影响是确定的**。
+### Stack State Flow
 
-### 例 3-2：受限函数正常使用
+```
+ss.push('A');
+ss.push('B');
+
+Handler:           Stack:
+  peek() → 'B'      ['A', 'B']   ← stack top is B
+  pop()             ['A']        ← pop B
+  peek() → 'A'      ['A']        ← stack top is now A
+```
+
+### Example 3-3: Restoring the Run Loop After Pop
+
+When `switchStatus(null, { effect: 'pop' })` pops a frame and the stack still has items, `statusDispatcher` re-reads the stack top — the next handler can use the new stack top data.
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['safe'],                              // 状态：safe → null
-        resultData: { x: 1 },                          // 最终 { x: 1 }
-        extra: { y: 2 },                               // 最终 { y: 2 }
+        status: ['level1', 'level2', 'done'],       // states: level1 → level2 → done → null
+        resultData: { results: [] },                 // final { results: [1, 2] }
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
     pop: (pop) => pop(),
     statusDispatcher: (peek, status) => status,
 
-    safe: (state, peek, api) => {
-        api.writeResultData({ x: 1 });    // ?? 第一次调用
-        api.writeExtra({ y: 2 });          // ?? 第一次调用
-        api.switchStatus(null, { effect: 'run' }); // ?? 第一次调用
+    level1: (state, peek, api) => {
+        console.log('level1, top:', peek());
+        api.switchStatus('level2', { effect: 'push', param: ['task-2'] });
+    },
+    level2: (state, peek, api) => {
+        console.log('level2, top:', peek());
+        api.switchStatus('done', { effect: 'push', param: ['task-3'] });
+    },
+    done: (state, peek, api) => {
+        console.log('done, top:', peek());
+        api.writeResultData({ results: ['final'] });
+        api.switchStatus(null, { effect: 'pop' });
     },
 
-    init: (state, push) => { state.status = 'safe'; },
+    init: (state, push) => { state.status = 'level1'; push('task-1'); },
 });
 
-ss.run(); // OK
+ss.run();
+// level1, top: task-1
+// level2, top: task-2
+// done, top: task-3
 ```
 
-### 例 3-3：超限调用抛错
+---
+
+## writeExtra — Additional Data Channel
+
+`writeResultData` is the "primary" data channel used throughout the state machine's lifecycle. `writeExtra` is an additional channel — suitable for auxiliary data that should not affect the primary data on the store path.
+
+### Example 4-1: writeResultData and writeExtra Usage
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['dangerous'],                     // 状态：dangerous → 抛错
-        resultData: {},                             // 未写入
+        status: ['collect', 'finish'],              // states: collect → finish → null
+        resultData: { main: 'default' },             // primary data
+        extra: { debug: null },                      // auxiliary data
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
     pop: (pop) => pop(),
     statusDispatcher: (peek, status) => status,
 
-    dangerous: (state, peek, api) => {
-        api.switchStatus('a');    // 第一次 ??
-        api.switchStatus('b');    // ?? 抛错！同一轮中第二次调用
+    collect: (state, peek, api) => {
+        api.writeResultData({ main: 'important' });
+        api.writeExtra({ debug: 'timestamps...' });
+        api.switchStatus('finish');
+    },
+    finish: (state, peek, api) => {
+        api.switchStatus(null, { effect: 'run' });
     },
 
-    init: (state, push) => { state.status = 'dangerous'; },
+    init: (state) => { state.status = 'collect'; },
 });
 
-try {
-    ss.run();
-} catch (e) {
-    console.log(e.message); // "函数 #2 在一轮状态周期中调用超过一次"
-}
+ss.run();
+console.log(ss.readState());
+// { status: null, resultData: { main: 'important' } }
 ```
 
+> Note: `readState()` only returns `status` and `resultData`. `extra` is included in the internal state but not exposed via the public interface.
+
+### Example 4-2: Restriction Rule — Each per Cycle at Most Once
+
+Calling `switchStatus`, `writeResultData`, or `writeExtra` more than once per cycle throws.
+
 ```js
-// 另一个超限示例：writeResultData 重复调用
-const ss2 = createStateStack({
+const ss = createStateStack({
     state: {
-        status: ['bad'],                              // 状态：bad → 抛错
-        resultData: {},                               // 未写入
+        status: ['bad'],                             // state: bad → error
+        resultData: {},
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -525,147 +585,139 @@ const ss2 = createStateStack({
     statusDispatcher: (peek, status) => status,
 
     bad: (state, peek, api) => {
-        api.writeResultData({ a: 1 });  // ??
-        api.writeResultData({ b: 2 });  // ?? 抛错
+        api.switchStatus(null, { effect: 'run' });
+        api.switchStatus(null, { effect: 'pop' }); // Error: switchStatus called twice!
     },
 
-    init: (state, push) => { state.status = 'bad'; },
+    init: (state) => { state.status = 'bad'; },
 });
 
-try { ss2.run(); } catch (e) {
-    console.log(e.message); // "函数 #1 在一轮状态周期中调用超过一次"
+try {
+    ss.run();
+} catch (e) {
+    console.error(e.message);
+    // 函数 #2 在一轮状态周期中调用超过一次
 }
 ```
 
 ---
 
-## 子栈（Child Stack）
+## Child Stacks
 
-子栈是独立的 StateStack 实例，由父栈在 handler 中通过 `api.createChildStateStack(def, id)` 创建。子栈运行完后通过 `{ effect: 'run', param: ['child', id] }` 将控制权交回父栈。
+Child stacks are independent StateStack instances created within a state machine. They are suitable for sub-tasks that have their own independent lifecycle — such as deploying to different environments, processing sub-orders, etc.
 
-### 例 4-1：单子栈 — 创建 → 运行 → 读取 → 销毁
+### Example 4-3: Basic Child Stack
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['createChild', 'runChild', 'readChild', 'done'],  // 父栈状态
-        resultData: {},                                             // 子栈运行后读取结果
+        status: ['main', 'processChild', 'finish'],  // state flow
+        resultData: { childDone: false },             // final child status
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
     pop: (pop) => pop(),
     statusDispatcher: (peek, status) => status,
 
-    // ① 创建子栈
-    createChild: (state, peek, api) => {
+    main: (state, peek, api) => {
+        // Create child stack
         api.createChildStateStack({
             state: {
-                status: ['waiting', 'processing'],       // 子栈状态
-                resultData: { childResult: 'ok' },       // 最终 { childResult: 'ok' }
+                status: ['init', 'done'],
+                resultData: { result: 'child-result' },
             },
             peek: (peek) => peek(),
-            push: (push, data) => { console.log('[child] push:', data); push(data); },
+            push: (push, data) => push(data),
             pop: (pop, writeResultData) => {
-                writeResultData({ handled: true });
+                writeResultData({ result: 'child-result' });
                 pop();
             },
             statusDispatcher: (peek, status) => status,
 
-            waiting: (state, peek, api) => {
-                api.switchStatus('processing');
+            init: (state, push) => { state.status = 'init'; },
+            init$1: (state, peek, api) => {
+                api.switchStatus('done', { effect: 'run' });
             },
-            processing: (state, peek, api) => {
-                api.writeResultData({ childResult: 'ok' });
-                api.switchStatus(null, { effect: 'run' });
+            done: (state, peek, api) => {
+                api.switchStatus(null, { effect: 'pop' });
             },
-            init: (state) => { state.status = 'waiting'; },
-        }, 'child1');
+        }, 'myChild');
 
-        api.switchStatus('runChild');
+        api.switchStatus('processChild');
     },
-
-    // ② 切换到子栈执行
-    runChild: (state, peek, api) => {
-        api.switchStatus('readChild', { effect: 'run', param: ['child', 'child1'] });
+    processChild: (state, peek, api) => {
+        api.switchStatus('finish', { effect: 'run', param: ['child', 'myChild'] });
     },
-
-    // ③ 读取子栈结果并销毁
-    readChild: (state, peek, api) => {
-        const childState = api.childStateStack('child1').readState();
-        console.log('[parent] child state:', childState);
-        // { status: null, resultData: { childResult: 'ok' } }
-
-        api.childStateStack('child1').destroy();
-        api.switchStatus('done');
-    },
-
-    done: (state, peek, api) => {
+    finish: (state, peek, api) => {
+        const childState = api.childStateStack('myChild').readState();
+        api.writeResultData({ childDone: true });
+        api.childStateStack('myChild').destroy();
         api.switchStatus(null, { effect: 'run' });
     },
 
-    init: (state) => { state.status = 'createChild'; },
+    init: (state) => { state.status = 'main'; },
+}, () => {
+    console.log('finished, child state:', ss.readState());
 });
-
-ss.run();
-// [child] push: data
-// [parent] child state: { status: null, resultData: { childResult: 'ok' } }
 ```
 
-### 例 4-2：两个子栈交替使用
+### Example 4-4: Multi-Level Nested Stacks (Tree Structure)
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['createChildren', 'runA', 'runB', 'readAll'],  // 父栈状态
-        resultData: {},                                          // 子栈结果统一在 readAll 中读取
+        status: ['root'],
+        resultData: { a: null, b: null },
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
     pop: (pop) => pop(),
     statusDispatcher: (peek, status) => status,
 
-    createChildren: (state, peek, api) => {
-        // 创建两个子栈
-        api.createChildStateStack(makeChildDef('A'), 'stackA');
-        api.createChildStateStack(makeChildDef('B'), 'stackB');
-        api.switchStatus('runA');
-    },
+    root: (state, peek, api) => {
+        // Create two child stacks
+        api.createChildStateStack({
+            state: { status: ['work'], resultData: { from: 'A' } },
+            peek: (peek) => peek(),
+            push: (push, data) => push(data),
+            pop: (pop) => pop(),
+            statusDispatcher: (peek, status) => status,
+            work: (state, peek, api) => {
+                api.switchStatus(null, { effect: 'pop' });
+            },
+            init: (state) => { state.status = 'work'; },
+        }, 'stackA');
 
+        api.createChildStateStack({
+            state: { status: ['work'], resultData: { from: 'B' } },
+            peek: (peek) => peek(),
+            push: (push, data) => push(data),
+            pop: (pop) => pop(),
+            statusDispatcher: (peek, status) => status,
+            work: (state, peek, api) => {
+                api.switchStatus(null, { effect: 'pop' });
+            },
+            init: (state) => { state.status = 'work'; },
+        }, 'stackB');
+
+        // Execute child stacks sequentially
+        api.switchStatus('runA', { effect: 'run', param: ['child', 'stackA'] });
+    },
     runA: (state, peek, api) => {
-        api.switchStatus('runB', { effect: 'run', param: ['child', 'stackA'] });
+        const resultA = api.childStateStack('stackA').readState();
+        api.writeResultData({ a: resultA });
+        api.switchStatus('runB', { effect: 'run', param: ['child', 'stackB'] });
     },
     runB: (state, peek, api) => {
-        api.switchStatus('readAll', { effect: 'run', param: ['child', 'stackB'] });
-    },
-    readAll: (state, peek, api) => {
-        const a = api.childStateStack('stackA').readState();
-        const b = api.childStateStack('stackB').readState();
-        console.log('stackA:', a.resultData);
-        console.log('stackB:', b.resultData);
+        const resultB = api.childStateStack('stackB').readState();
+        api.writeResultData({ b: resultB });
         api.childStateStack('stackA').destroy();
         api.childStateStack('stackB').destroy();
         api.switchStatus(null, { effect: 'run' });
     },
 
-    init: (state) => { state.status = 'createChildren'; },
+    init: (state) => { state.status = 'root'; },
 });
-
-function makeChildDef(label) {
-    return {
-        state: {
-            status: ['work'],                          // 子栈状态：work → null
-            resultData: { from: label },               // 最终 { from: 'A' } 或 { from: 'B' }
-        },
-        peek: (peek) => peek(),
-        push: (push, data) => push(data),
-        pop: (pop, writeResultData) => { writeResultData({ from: label }); pop(); },
-        statusDispatcher: (peek, status) => status,
-        work: (state, peek, api) => {
-            api.switchStatus(null, { effect: 'pop' });
-        },
-        init: (state) => { state.status = 'work'; },
-    };
-}
 
 ss.run();
 // stackA: { from: 'A' }
@@ -674,24 +726,24 @@ ss.run();
 
 ---
 
-## 模块链（Refinement）— AOP 式函数覆写
+## Module Chain (Refinement) — AOP-Style Function Overwriting
 
-模块链用于为状态栈添加横切行为（如日志、缓存、权限检查），对最终使用者透明。
+The module chain adds cross-cutting behavior (such as logging, caching, permission checking) to the state stack, transparently to the end user.
 
-核心机制：
+Core mechanism:
 
 ```
-refineCreateStateStack({ pop: (prevPop) => () => { /* 横切逻辑 */; prevPop(); } })
+refineCreateStateStack({ pop: (prevPop) => () => { /* cross-cutting logic */; prevPop(); } })
 ```
 
-- `refineCreateStateStack(refinementObject)` — 恒等函数，纯视觉标识
-- `createStateStack(refinementObject)` — 返回柯里化的新 `createStateStack`，而非实例
-- 支持覆写：`pop`、`push`、`peek`、`switchStatus`、`writeResultData`、`writeExtra`
+- `refineCreateStateStack(refinementObject)` — identity function, purely a visual marker
+- `createStateStack(refinementObject)` — returns a curried `createStateStack`, not an instance
+- Supports overwriting: `pop`, `push`, `peek`, `switchStatus`, `writeResultData`, `writeExtra`
 
-### 例 5-1：单模块覆写（注入日志）
+### Example 5-1: Single Module Overwrite (Inject Logging)
 
 ```js
-// moduleA.js — 覆写 pop，注入日志
+// moduleA.js — overwrite pop, inject logging
 import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
 
 export const createStateStack = _core(refineCreateStateStack({
@@ -702,13 +754,13 @@ export const createStateStack = _core(refineCreateStateStack({
     },
 }));
 
-// main.js — 最终使用者，不知道模块链的存在
+// main.js — end user, unaware of the module chain
 import { createStateStack } from './moduleA.js';
 
 const ss = createStateStack({
     state: {
-        status: ['start'],                         // 状态：start → null
-        resultData: { done: true },                // 最终 { done: true }
+        status: ['start'],                         // states: start → null
+        resultData: { done: true },                // final { done: true }
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -730,10 +782,10 @@ ss.run();
 // [moduleA] pop after
 ```
 
-### 例 5-2：多模块链式叠加
+### Example 5-2: Multi-Module Chain
 
 ```js
-// moduleA.js — 覆写 pop
+// moduleA.js — overwrite pop
 import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
@@ -742,7 +794,7 @@ export const createStateStack = _core(refineCreateStateStack({
     },
 }));
 
-// moduleB.js — 从 moduleA 继续覆写 push
+// moduleB.js — extend from moduleA, overwrite push
 import { createStateStack as _core } from './moduleA.js';
 import { refineCreateStateStack } from 'state-stack';
 export const createStateStack = _core(refineCreateStateStack({
@@ -752,13 +804,13 @@ export const createStateStack = _core(refineCreateStateStack({
     },
 }));
 
-// main.js — 最终使用者，只看到 moduleB
+// main.js — end user, only sees moduleB
 import { createStateStack } from './moduleB.js';
 
 const ss = createStateStack({
     state: {
-        status: ['start', 'end'],                  // 状态：start → end → null
-        resultData: { done: true },                // 最终 { done: true }
+        status: ['start', 'end'],                  // states: start → end → null
+        resultData: { done: true },                // final { done: true }
     },
     peek: (peek) => peek(),
     push: (push, data) => push(data),
@@ -783,7 +835,7 @@ ss.run();
 // [pop] intercepted
 ```
 
-多模块链式语法可以连续叠加：
+Multi-module chained syntax for continuous layering:
 
 ```js
 import { refineCreateStateStack, createStateStack as core } from 'state-stack';
@@ -791,38 +843,38 @@ import { refineCreateStateStack, createStateStack as core } from 'state-stack';
 const createStateStack = core(refineCreateStateStack({ pop: logPop }))
                            (refineCreateStateStack({ push: logPush }))
                            (refineCreateStateStack({ peek: logPeek }));
-// 从左到右逐层复合
+// Composed from left to right, layer by layer
 ```
 
 ---
 
-## 实例方法
+## Instance Methods
 
-`createStateStack(...)` 返回的实例暴露以下方法：
+The instance returned by `createStateStack(...)` exposes the following methods:
 
 ### `ss.run()`
 
-启动/运行状态机。`init` 在实例创建时已执行；`run()` 从 `statusDispatcher` 开始，循环执行 `statusDispatcher → handler → effect` 直到状态为 `null`。
+Start/run the state machine. `init` has already executed at instance creation; `run()` starts with `statusDispatcher` and loops through `statusDispatcher → handler → effect` until status is `null`.
 
 ### `ss.readState()`
 
-返回当前状态快照：`{ status, resultData }`。内部状态还包含 `extra`，但不在返回结构中暴露。
+Returns the current state snapshot: `{ status, resultData }`. The internal state also contains `extra`, but it is not exposed in the returned structure.
 
 ```js
 const state = ss.readState();
-console.log(state.status);      // 当前状态
-console.log(state.resultData);  // 结果数据
+console.log(state.status);      // current status
+console.log(state.resultData);  // result data
 ```
 
 ### `ss.push(data)`
 
-直接向栈中推入数据（外部推入，不经过状态机）。
+Push data directly onto the stack (external push, bypassing the state machine).
 
 ```js
 const ss = createStateStack({
     state: {
-        status: ['main'],                          // 状态：main → null
-        resultData: {},                             // 无结果写入
+        status: ['main'],                          // state: main → null
+        resultData: {},                             // no result written
     },
     peek: (peek) => peek(),
     push: (push, data) => { console.log('received:', data); push(data); },
@@ -835,36 +887,36 @@ const ss = createStateStack({
     init: (state) => { state.status = 'main'; },
 });
 
-ss.push('external data');  // 外部入栈
+ss.push('external data');  // external push
 ss.run();
 // received: external data
 ```
 
 ### `ss.destroy()`
 
-销毁实例。幂等操作——第二次调用不抛错。销毁后所有方法（`run`、`readState`、`push`）均抛错。
+Destroy the instance. Idempotent — the second call does not throw. After destruction, all methods (`run`, `readState`, `push`) throw errors.
 
 ```js
 ss.destroy();
-ss.destroy();      // ?? 幂等，不抛错
+ss.destroy();      // ✅ idempotent, no error
 
-ss.run();          // ?? Error: StateStack has been destroyed
-ss.readState();    // ?? Error: StateStack has been destroyed
-ss.push('x');      // ?? Error: StateStack has been destroyed
+ss.run();          // ❌ Error: StateStack has been destroyed
+ss.readState();    // ❌ Error: StateStack has been destroyed
+ss.push('x');      // ❌ Error: StateStack has been destroyed
 ```
 
 ---
 
-## 真实场景
+## Real-World Scenarios
 
-### 例 6-1：电商订单处理流水线
+### Example 6-1: E-Commerce Order Processing Pipeline
 
-一个完整的电商订单从创建到完成的流转过程。每个阶段都把操作记录入栈，最后统一输出订单生命周期轨迹。
+A complete order lifecycle from creation to completion. Each stage pushes an operation record onto the stack, and the final result aggregates the order's lifecycle trace.
 
 ```
-状态流转：pending → paid → shipped → completed
-栈内容：  [订单快照, 支付记录, 发货记录]
-resultData：最终累积的订单信息
+State flow: pending → paid → shipped → completed
+Stack:     [order snapshot, payment record, shipping record]
+resultData: final accumulated order info
 ```
 
 ```js
@@ -872,7 +924,7 @@ import { createStateStack } from 'state-stack';
 
 const ss = createStateStack({
     state: {
-        status: ['pending', 'paid', 'shipped', 'completed'],  // 订单状态
+        status: ['pending', 'paid', 'shipped', 'completed'],  // order statuses
         resultData: { orderId: 0, paymentId: '', trackingNo: '' },
     },
     peek: (peek) => peek(),
@@ -882,12 +934,12 @@ const ss = createStateStack({
     },
     pop: (pop, writeResultData) => {
         const record = pop();
-        writeResultData(record);              // 将弹出的记录写入 resultData
+        writeResultData(record);              // write the popped record to resultData
         console.log('[pop]', record);
     },
     statusDispatcher: (peek, status) => status,
 
-    // ① 订单创建 → 待支付
+    // ① Order created → pending payment
     pending: (state, peek, api) => {
         api.switchStatus('paid', {
             effect: 'push',
@@ -895,7 +947,7 @@ const ss = createStateStack({
         });
     },
 
-    // ② 支付完成 → 待发货
+    // ② Payment complete → pending shipment
     paid: (state, peek, api) => {
         api.writeResultData({ paymentId: 'pay_12345' });
         api.switchStatus('shipped', {
@@ -904,7 +956,7 @@ const ss = createStateStack({
         });
     },
 
-    // ③ 发货完成 → 待确认
+    // ③ Shipped → pending confirmation
     shipped: (state, peek, api) => {
         api.writeResultData({ trackingNo: 'SF_998877' });
         api.switchStatus('completed', {
@@ -913,7 +965,7 @@ const ss = createStateStack({
         });
     },
 
-    // ④ 完成 → 弹栈并结束
+    // ④ Completed → pop and finish
     completed: (state, peek, api) => {
         api.switchStatus(null, { effect: 'pop' });
     },
@@ -923,10 +975,10 @@ const ss = createStateStack({
 
 ss.run();
 
-// 读取最终结果
+// Read final result
 const final = ss.readState();
 console.log('final resultData:', final.resultData);
-// 输出示例:
+// Sample output:
 //   [push] { event: 'created', time: 1715000000000 }
 //   [push] { event: 'paid', amount: 99.9, time: 1715000001000 }
 //   [push] { event: 'shipped', carrier: 'SF', time: 1715000002000 }
@@ -934,26 +986,26 @@ console.log('final resultData:', final.resultData);
 //   final resultData: { trackingNo: 'SF_998877', paymentId: 'pay_12345' }
 ```
 
-> 上例中 `writeResultData` 在 `paid` 和 `shipped` 阶段被调用累积信息，
-> 最后 `pop` 的 `writeResultData` 覆盖了最终值。
-> 如果想保留完整的阶段记录，可以把阶段性数据写入 `extra`，而 `resultData` 仅存放最终状态。
+> In the example above, `writeResultData` is called during `paid` and `shipped` to accumulate information,
+> but the final `pop`'s `writeResultData` overwrites the final value.
+> If you want to preserve the full per-stage record, write stage data to `extra` and only store the final state in `resultData`.
 
 ---
 
-### 例 6-2：CI/CD 构建与多环境部署系统
+### Example 6-2: CI/CD Build and Multi-Environment Deployment System
 
-一个自动化构建部署流水线。主栈负责构建 + 测试，子栈负责不同环境的部署。同时演示模块链注入通知逻辑。
+An automated build-and-deploy pipeline. The main stack handles build + test, and child stacks handle deployment to different environments. It also demonstrates module chain notification injection.
 
 ```
-主栈状态：queued → building → testing → deploying → verifying
-子栈：    staging 部署 → 冒烟测试
-          production 部署 → 健康检查
+Main stack states: queued → building → testing → deploying → verifying
+Child stacks:    staging deploy → smoke test
+                 production deploy → health check
 ```
 
 ```js
 import { createStateStack, refineCreateStateStack } from 'state-stack';
 
-// ── 定义子栈生成函数（每个环境一个子栈） ──
+// ── Child stack factory (one per environment) ──
 function createEnvironmentDeployer(envName) {
     return {
         state: {
@@ -970,17 +1022,17 @@ function createEnvironmentDeployer(envName) {
             api.switchStatus('healthCheck');
         },
         healthCheck: (state, peek, api) => {
-            const passed = Math.random() > 0.2; // 80% 通过
+            const passed = Math.random() > 0.2; // 80% pass rate
             api.writeResultData({ status: passed ? 'healthy' : 'unhealthy' });
-            console.log(`[${envName}] health check:`, passed ? '??' : '??');
-            api.switchStatus(null, { effect: 'run' });  // 回到主栈
+            console.log(`[${envName}] health check:`, passed ? '✅' : '❌');
+            api.switchStatus(null, { effect: 'run' });  // return to main stack
         },
 
         init: (state) => { state.status = 'deploying'; },
     };
 }
 
-// ── 主流水线状态机 ──
+// ── Main pipeline state machine ──
 const ss = createStateStack({
     state: {
         status: ['queued', 'building', 'testing', 'deploying', 'verifying'],
@@ -1001,32 +1053,32 @@ const ss = createStateStack({
         api.switchStatus('testing', { effect: 'push', param: ['v1.0.0'] });
     },
     testing: (state, peek, api) => {
-        // 模拟测试
+        // Simulate test
         const passed = Math.random() > 0.3;
         api.writeResultData({
             testReport: { passed: passed, failures: passed ? 0 : 2 },
         });
         console.log('[CI] tests:', passed ? 'PASSED' : 'FAILED');
-        // 根据测试结果决定是否继续部署
+        // Decide whether to deploy based on test results
         if (!passed) {
-            api.switchStatus(null, { effect: 'run' });  // 测试失败，终止流水线
+            api.switchStatus(null, { effect: 'run' });  // test failed, stop pipeline
         } else {
             api.switchStatus('deploying');
         }
     },
     deploying: (state, peek, api) => {
-        // 创建两个环境子栈
+        // Create two environment child stacks
         api.createChildStateStack(createEnvironmentDeployer('staging'), 'staging');
         api.createChildStateStack(createEnvironmentDeployer('production'), 'production');
 
-        // 先部署 staging
+        // Deploy staging first
         api.switchStatus('runStaging', { effect: 'run', param: ['child', 'staging'] });
     },
     runStaging: (state, peek, api) => {
         api.switchStatus('runProduction', { effect: 'run', param: ['child', 'production'] });
     },
     runProduction: (state, peek, api) => {
-        // 收集两个环境的部署结果
+        // Collect deployment results from both environments
         const stagingResult = api.childStateStack('staging').readState();
         const prodResult = api.childStateStack('production').readState();
         api.writeResultData({
@@ -1043,7 +1095,7 @@ const ss = createStateStack({
         JSON.stringify(ss.readState().resultData, null, 2));
 });
 
-// ── 用模块链注入审计日志 ──
+// ── Inject audit logging with module chain ──
 const createStateStackWithLogging = createStateStack(refineCreateStateStack({
     push: (prevPush) => (data) => {
         console.log('[audit] push:', data);
@@ -1055,27 +1107,27 @@ const createStateStackWithLogging = createStateStack(refineCreateStateStack({
     },
 }));
 
-// 使用带日志的版本创建另一个流水线实例
+// Use the logging version to create another pipeline instance
 // const ss2 = createStateStackWithLogging({ ... });
 
 console.log('=== CI/CD Pipeline Start ===');
 ss.run();
 ```
 
-> 这个例子展示了三个核心模式：
-> 1. **子栈协作**：每个环境部署为一个独立子栈
-> 2. **resultData 累积**：构建 ID → 测试报告 → 部署结果
-> 3. **模块链**：`refineCreateStateStack` 注入审计日志
+> This example demonstrates three core patterns:
+> 1. **Child stack collaboration**: each environment deployment is an independent child stack
+> 2. **resultData accumulation**: build ID → test report → deployment results
+> 3. **Module chain**: `refineCreateStateStack` injects audit logging
 
 ---
 
-## 常见错误
+## Common Errors
 
-| 错误场景 | 错误消息 |
-|----------|----------|
-| 受限函数超限调用 | `函数 #n 在一轮状态周期中调用超过一次` |
-| 调用已销毁实例的方法 | `StateStack has been destroyed` |
-| `createStateStack` 参数非法 | `参数必须是 StateStackDefinitionObject（含 state 字段）或 StateStackRefinementObject（不含 state 字段）` |
-| 子栈 ID 不存在 | `childStateStack id "xxx" not found` |
+| Error Scenario | Error Message |
+|----------------|---------------|
+| Restricted function called too many times | `函数 #n 在一轮状态周期中调用超过一次` |
+| Calling a method on a destroyed instance | `StateStack has been destroyed` |
+| Invalid `createStateStack` argument | `参数必须是 StateStackDefinitionObject（含 state 字段）或 StateStackRefinementObject（不含 state 字段）` |
+| Child stack ID not found | `childStateStack id "xxx" not found` |
 
-> 完整错误列表见 [API 参考](./api-reference.md)。
+> See [API Reference](./api-reference.md) for the complete list of errors.
