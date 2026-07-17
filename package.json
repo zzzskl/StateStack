@@ -1,0 +1,30 @@
+{
+    "name": "state-stack",
+    "version": "0.1.0",
+    "description": "栈 + 状态机融合——每个状态处理函数通过 peek 感知栈顶，通过 switchStatus 驱动栈操作，所有副作用以固定的栈操作形式表达",
+    "type": "module",
+    "main": "./index.js",
+    "types": "./index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./index.js",
+            "types": "./index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsc",
+        "test": "node --test dist/test/"
+    },
+    "keywords": [
+        "state-machine",
+        "state-stack",
+        "finite-state-machine",
+        "workflow-engine",
+        "fsm",
+        "stack-machine"
+    ],
+    "license": "Apache-2.0",
+    "devDependencies": {
+        "typescript": "^7.0.2"
+    }
+}

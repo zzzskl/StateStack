@@ -1,0 +1,7 @@
+# ── 本地开发文件，不参与 npm 发布 ──
+draft/
+experiment/
+experiments/
+implementations/
+.reasonix/
+test/
