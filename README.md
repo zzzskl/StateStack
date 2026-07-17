@@ -53,7 +53,7 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 
 ## 快速开始
 
-下面是一个三状态（`idle → processing → done`）的最小状态机，展示完整的**入栈 → 处理 → 弹栈 → 结束**流程。
+下面是一个三状态（`idle → processing → done`）的最小状态机，展示完整的**入栈 → 处理 → 弹栈 → 控制权回传，循环终止**流程。
 
 ```js
 import { createStateStack } from 'state-stack';
@@ -84,7 +84,7 @@ const ss = createStateStack({
         api.switchStatus('done', { effect: 'pop' });
     },
     done: (state, peek, api) => {
-        api.switchStatus(null, { effect: 'run' }); // null 状态 = 结束
+        api.switchStatus(null, { effect: 'run' }); // {effect:'run'} 控制权回传，循环终止
     },
 
     // ── 初始化（createStateStack() 调用时立即执行） ──
@@ -100,7 +100,7 @@ console.log(ss.readState()); // { status: null, resultData: { done: true } }
 init → status = 'idle'
   → idle handler: switchStatus('processing', push) → 栈压入 'task-001'
   → processing handler: switchStatus('done', pop) → 弹栈
-  → done handler: switchStatus(null, run) → 结束
+  → done handler: switchStatus(null, run) → 控制权回传，循环终止
 ```
 
 ---
@@ -119,13 +119,12 @@ init → status = 'idle'
 ## 源码结构
 
 ```
-src/
-├── Stack.js                  # 原始栈 + 状态原型（simplest 层）
-├── funcTransformer.js        # overwriteChain 函数复合（reduce）
-├── closureService.js         # 模块链存储
-├── funcTimer.js              # 受限函数计数器包装
-├── createStateStack.js       # 入口：模块链 / 实例创建双模式
-└── createStateStackCore.js   # 核心工厂：四层作用域 + 运行循环
+src/`n├── Stack.ts                  # 原始栈 + 状态原型（simplest 层）
+├── funcTransformer.ts        # overwriteChain 函数复合（reduce）
+├── closureService.ts         # 模块链存储
+├── funcTimer.ts              # 受限函数计数器包装
+├── createStateStack.ts       # 入口：模块链 / 实例创建双模式
+└── createStateStackCore.ts   # 核心工厂：四层作用域 + 运行循环
 ```
 
 ---

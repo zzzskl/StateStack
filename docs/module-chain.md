@@ -156,10 +156,10 @@ createStateStack(refineCreateStateStack({ pop: (prev) => () => { /* ... */ prev(
 
 | 函数 | 签名 | 说明 |
 |------|------|------|
-| `pop` | `(prevPop) => () => void` | 弹栈操作 |
+| `pop` | `(prevPop) => () => unknown` | 弹栈操作，返回弹出的值 |
 | `push` | `(prevPush) => (data) => void` | 入栈操作 |
-| `peek` | `(prevPeek) => () => any` | 读取栈顶 |
-| `switchStatus` | `(prevSwitchStatus) => (nextStatus, effect?) => void` | 状态切换 |
+| `peek` | `(prevPeek) => () => unknown` | 读取栈顶 |
+| `switchStatus` | `(prevSwitchStatus) => (...args: unknown[]) => void` | 状态切换 |
 | `writeResultData` | `(prevWriteResultData) => (value) => void` | 写入结果数据 |
 | `writeExtra` | `(prevWriteExtra) => (value) => void` | 写入附加数据 |
 
