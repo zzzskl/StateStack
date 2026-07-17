@@ -94,7 +94,7 @@ createStateStack({ pop: (prev) => ... })({ state: ... }) → StateStackInstance
 
 ```js
 // moduleA.js
-import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as _core } from '@ffort_233/state-stack';
 
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
@@ -125,7 +125,7 @@ moduleA 覆写 pop
 多个覆写可以在一个表达式中连续叠加：
 
 ```js
-import { refineCreateStateStack, createStateStack as core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as core } from '@ffort_233/state-stack';
 
 const createStateStack = core(refineCreateStateStack({ pop: logPop }))
                            (refineCreateStateStack({ push: logPush }))

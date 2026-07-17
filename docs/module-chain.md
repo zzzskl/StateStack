@@ -94,7 +94,7 @@ Overwrite a function in a single module:
 
 ```js
 // moduleA.js
-import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as _core } from '@ffort_233/state-stack';
 
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
@@ -125,7 +125,7 @@ The composition order follows the module chain addition order, left to right.
 Multiple overwrites can be applied in a single expression:
 
 ```js
-import { refineCreateStateStack, createStateStack as core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as core } from '@ffort_233/state-stack';
 
 const createStateStack = core(refineCreateStateStack({ pop: logPop }))
                            (refineCreateStateStack({ push: logPush }))

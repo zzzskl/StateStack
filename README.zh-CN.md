@@ -14,7 +14,7 @@
 
 补充：目前项目中的run循环检查到status为null时会返回，这并不符合设计本意。避免使用这种方式返回，而是使用run调用根创造者传入的函数来显式转移控制流。
 
-[![npm version](https://img.shields.io/npm/v/state-stack)](https://www.npmjs.com/package/state-stack)
+[![npm version](https://img.shields.io/npm/v/@ffort_233/state-stack)](https://www.npmjs.com/package/@ffort_233/state-stack)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/types-included-blue)](./index.d.ts)
 
@@ -42,11 +42,11 @@ StateStack 不是一个普通的状态机库。它适合这样的场景：
 ## 安装
 
 ```bash
-npm install state-stack
+npm install @ffort_233/state-stack
 ```
 
 ```js
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 ```
 
 ---
@@ -56,7 +56,7 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 下面是一个三状态（`idle → processing → done`）的最小状态机，展示完整的**入栈 → 处理 → 弹栈 → 控制权回传，循环终止**流程。
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     // ── 状态类型声明 ──

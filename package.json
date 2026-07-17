@@ -1,5 +1,5 @@
 {
-    "name": "state-stack",
+    "name": "@ffort_233/state-stack",
     "version": "0.1.0",
     "description": "A stack + state machine fusion — handlers peek the stack top, switchStatus drives stack operations, and all side effects are expressed as fixed-form stack primitives (push/pop/run)",
     "type": "module",

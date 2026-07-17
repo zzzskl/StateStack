@@ -207,7 +207,7 @@ Notes:
 The project ships complete TypeScript type declarations (`index.d.ts`).
 
 ```typescript
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 import type {
     StateStackInstance,
     StateStackDefinition,
@@ -218,7 +218,7 @@ import type {
     ChildStateStackHandle,
     StateSnapshot,
     CurriedCreateStateStack,
-} from 'state-stack';
+} from '@ffort_233/state-stack';
 ```
 
 ---

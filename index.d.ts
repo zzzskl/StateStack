@@ -1,4 +1,4 @@
-// Type definitions for state-stack
+// Type definitions for @ffort_233/state-stack
 // Auto-generated from src/types.ts — do not edit manually
 
 // ══════════════════════════════════════════════════════════════

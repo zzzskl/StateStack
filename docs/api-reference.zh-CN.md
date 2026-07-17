@@ -207,7 +207,7 @@ interface EffectDescriptor {
 项目附带完整 TypeScript 类型声明（`index.d.ts`）。
 
 ```typescript
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 import type {
     StateStackInstance,
     StateStackDefinition,
@@ -218,7 +218,7 @@ import type {
     ChildStateStackHandle,
     StateSnapshot,
     CurriedCreateStateStack,
-} from 'state-stack';
+} from '@ffort_233/state-stack';
 ```
 
 ---

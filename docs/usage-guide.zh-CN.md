@@ -7,11 +7,11 @@
 ## 安装
 
 ```bash
-npm install state-stack
+npm install @ffort_233/state-stack
 ```
 
 ```js
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 ```
 
 ---
@@ -23,7 +23,7 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 下面是一个三状态（`idle → processing → done`）的最小状态机。它展示了完整的栈操作流程：**入栈 → 处理 → 弹栈 → 结束**。
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     // ── 状态类型声明 ──
@@ -75,7 +75,7 @@ init → status = 'idle'
 `effect: 'run'` 能将控制权回传给调用者。`createStateStack` 的第二个参数 `runParent` 就是接收这个回传的回调。
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     state: {
@@ -692,7 +692,7 @@ refineCreateStateStack({ pop: (prevPop) => () => { /* 横切逻辑 */; prevPop()
 
 ```js
 // moduleA.js — 覆写 pop，注入日志
-import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as _core } from '@ffort_233/state-stack';
 
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
@@ -734,7 +734,7 @@ ss.run();
 
 ```js
 // moduleA.js — 覆写 pop
-import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as _core } from '@ffort_233/state-stack';
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
         console.log('[pop] intercepted');
@@ -744,7 +744,7 @@ export const createStateStack = _core(refineCreateStateStack({
 
 // moduleB.js — 从 moduleA 继续覆写 push
 import { createStateStack as _core } from './moduleA.js';
-import { refineCreateStateStack } from 'state-stack';
+import { refineCreateStateStack } from '@ffort_233/state-stack';
 export const createStateStack = _core(refineCreateStateStack({
     push: (prevPush) => (data) => {
         console.log('[push] intercepted:', data);
@@ -786,7 +786,7 @@ ss.run();
 多模块链式语法可以连续叠加：
 
 ```js
-import { refineCreateStateStack, createStateStack as core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as core } from '@ffort_233/state-stack';
 
 const createStateStack = core(refineCreateStateStack({ pop: logPop }))
                            (refineCreateStateStack({ push: logPush }))
@@ -868,7 +868,7 @@ resultData：最终累积的订单信息
 ```
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     state: {
@@ -951,7 +951,7 @@ console.log('final resultData:', final.resultData);
 ```
 
 ```js
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 
 // ── 定义子栈生成函数（每个环境一个子栈） ──
 function createEnvironmentDeployer(envName) {

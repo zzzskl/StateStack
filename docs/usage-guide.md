@@ -7,11 +7,11 @@
 ## Installation
 
 ```bash
-npm install state-stack
+npm install @ffort_233/state-stack
 ```
 
 ```js
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 ```
 
 ---
@@ -23,7 +23,7 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 Below is a minimal three-state (`idle → processing → done`) state machine. It demonstrates the full stack operation flow: **push → process → pop → finish**.
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     // ── state type declaration ──
@@ -75,7 +75,7 @@ init → status = 'idle'
 `effect: 'run'` can return control to the caller. The second parameter of `createStateStack`, `runParent`, is the callback that receives this control transfer.
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     state: {
@@ -744,7 +744,7 @@ refineCreateStateStack({ pop: (prevPop) => () => { /* cross-cutting logic */; pr
 
 ```js
 // moduleA.js — overwrite pop, inject logging
-import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as _core } from '@ffort_233/state-stack';
 
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
@@ -786,7 +786,7 @@ ss.run();
 
 ```js
 // moduleA.js — overwrite pop
-import { refineCreateStateStack, createStateStack as _core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as _core } from '@ffort_233/state-stack';
 export const createStateStack = _core(refineCreateStateStack({
     pop: (prevPop) => () => {
         console.log('[pop] intercepted');
@@ -796,7 +796,7 @@ export const createStateStack = _core(refineCreateStateStack({
 
 // moduleB.js — extend from moduleA, overwrite push
 import { createStateStack as _core } from './moduleA.js';
-import { refineCreateStateStack } from 'state-stack';
+import { refineCreateStateStack } from '@ffort_233/state-stack';
 export const createStateStack = _core(refineCreateStateStack({
     push: (prevPush) => (data) => {
         console.log('[push] intercepted:', data);
@@ -838,7 +838,7 @@ ss.run();
 Multi-module chained syntax for continuous layering:
 
 ```js
-import { refineCreateStateStack, createStateStack as core } from 'state-stack';
+import { refineCreateStateStack, createStateStack as core } from '@ffort_233/state-stack';
 
 const createStateStack = core(refineCreateStateStack({ pop: logPop }))
                            (refineCreateStateStack({ push: logPush }))
@@ -920,7 +920,7 @@ resultData: final accumulated order info
 ```
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     state: {
@@ -1003,7 +1003,7 @@ Child stacks:    staging deploy → smoke test
 ```
 
 ```js
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 
 // ── Child stack factory (one per environment) ──
 function createEnvironmentDeployer(envName) {

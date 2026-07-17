@@ -14,7 +14,7 @@
 >
 > **Supplement**: Currently, the run loop returns when it detects a `null` status, which does not align with the original design intent. Avoid relying on this behavior to exit; instead, use `run` with a concrete status to invoke the function passed by the root creator to explicitly transfer control flow.
 
-[![npm version](https://img.shields.io/npm/v/state-stack)](https://www.npmjs.com/package/state-stack)
+[![npm version](https://img.shields.io/npm/v/@ffort_233/state-stack)](https://www.npmjs.com/package/@ffort_233/state-stack)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/types-included-blue)](./index.d.ts)
 
@@ -44,11 +44,11 @@ StateStack is not a typical state-machine library. It's designed for scenarios w
 ## Installation
 
 ```bash
-npm install state-stack
+npm install @ffort_233/state-stack
 ```
 
 ```js
-import { createStateStack, refineCreateStateStack } from 'state-stack';
+import { createStateStack, refineCreateStateStack } from '@ffort_233/state-stack';
 ```
 
 ---
@@ -58,7 +58,7 @@ import { createStateStack, refineCreateStateStack } from 'state-stack';
 A three-state (`idle → processing → done`) minimal state machine showing the full **push → process → pop → control return → loop termination** flow:
 
 ```js
-import { createStateStack } from 'state-stack';
+import { createStateStack } from '@ffort_233/state-stack';
 
 const ss = createStateStack({
     // ── state type declaration ──
