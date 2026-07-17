@@ -1,95 +1,108 @@
 // Type definitions for state-stack
+// Auto-generated from src/types.ts — do not edit manually
 
-/**
- * 状态栈实例
- */
-export interface StateStackInstance {
-    /** 运行状态机 */
-    run(): void;
-    /** 读取当前状态快照 */
-    readState(): StateSnapshot;
-    /** 向栈中推入数据 */
-    push(data: unknown): void;
-    /** 销毁实例，销毁后所有方法均抛错 */
-    destroy(): void;
-}
+// ══════════════════════════════════════════════════════════════
+// 基础类型
+// ══════════════════════════════════════════════════════════════
 
+/** 状态快照 */
 export interface StateSnapshot {
-    status: unknown;
+    status: string | null;
     resultData: Record<string, unknown>;
 }
 
-/**
- * 状态栈定义对象——createStateStack 的最终参数
- */
-export interface StateStackDefinitionObject {
-    /** 状态类型描述（仅作声明，不参与初始化） */
-    state: {
-        status: unknown[];
-        resultData: Record<string, unknown>;
-        extra?: Record<string, unknown>;
-    };
-    /** 自定义 peek 实现，参数 simplePeek 是模块链增强后的基础 peek */
-    peek: (simplePeek: () => unknown) => unknown;
-    /** 自定义 push 实现，参数 (simplePush, data) */
-    push: (simplePush: (data: unknown) => void, data: unknown) => void;
-    /** 自定义 pop 实现，参数 (simplePop, simpleWriteResultData) */
-    pop: (simplePop: () => unknown, simpleWriteResultData: (value: unknown) => void) => void;
-
-    /** 状态分发器，读取当前状态名称 */
-    statusDispatcher: (peek: () => unknown, status: unknown) => unknown;
-
-    /** 初始化函数，在 run 开始时执行 */
-    init?: (state: StateSnapshot, push: (data: unknown) => void) => void;
-
-    /** 自定义状态处理函数 */
-    [statusName: string]: StateHandler | unknown[] | Record<string, unknown> | undefined;
-}
-
-/**
- * 状态处理函数——对应 definition 中的每个状态（statusA / statusB / ...）
- */
-export interface StateHandler {
-    (state: StateSnapshot, peek: () => unknown, api: StateAPI): void;
-}
-
-/**
- * 状态 API——状态处理函数中可调用的方法
- */
-export interface StateAPI {
-    /** 受限的 writeResultData（每轮最多调用一次） */
-    writeResultData(value: unknown): void;
-    /** 受限的 writeExtra（每轮最多调用一次） */
-    writeExtra(value: unknown): void;
-    /** 受限的 switchStatus（每轮最多调用一次） */
-    switchStatus(nextStatus: unknown, effect?: EffectDescriptor): void;
-    /** 创建子栈 */
-    createChildStateStack(def: StateStackDefinitionObject, id: string): void;
-    /** 获取子栈操作接口 */
-    childStateStack(id: string): ChildStateStackHandle;
-}
-
-/**
- * effect 描述——switchStatus 的第二个参数
- */
+/** effect 描述符 */
 export interface EffectDescriptor {
     effect?: 'pop' | 'push' | 'run';
     param?: unknown;
 }
 
-/**
- * 子栈操作接口
- */
+// ══════════════════════════════════════════════════════════════
+// 子栈
+// ══════════════════════════════════════════════════════════════
+
+/** 子栈操作句柄 */
 export interface ChildStateStackHandle {
     readState(): StateSnapshot;
     push(data: unknown): void;
     destroy(): void;
 }
 
+// ══════════════════════════════════════════════════════════════
+// StateAPI（泛型：状态名 S）
+// ══════════════════════════════════════════════════════════════
+
+/** handler 的 api 参数 */
+export interface StateAPI<S extends string = string> {
+    writeResultData(value: unknown): void;
+    writeExtra(value: unknown): void;
+    /** 切换到声明过的状态（或 null 终止） */
+    switchStatus(nextStatus: S | null, effect?: EffectDescriptor): void;
+    createChildStateStack(def: Record<string, unknown>, id: string): void;
+    childStateStack(id: string): ChildStateStackHandle;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Handler（泛型：状态名 S）
+// ══════════════════════════════════════════════════════════════
+
+/** 状态处理函数 */
+export interface StateHandler<S extends string = string> {
+    (state: StateSnapshot, peek: () => unknown, api: StateAPI<S>): void;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 定义对象（泛型：状态名 S）
+// ══════════════════════════════════════════════════════════════
+
+/** 状态类型声明字段 */
+export interface StateTypeDeclaration {
+    status: string[];
+    resultData: Record<string, unknown>;
+    extra?: Record<string, unknown>;
+}
+
 /**
- * 模块覆写对象——refineCreateStateStack 的参数
- * 每个字段接收前一个版本的函数，返回包装后的新函数
+ * 状态栈定义对象。
+ * S 是 `state.status` 数组中声明的所有状态名的联合类型。
+ * 每个 S 中的状态名必须有对应的 handler 函数。
  */
+export interface StateStackDefinition<S extends string = string> {
+    /** 状态类型声明（纯文档约定，不参与运行时初始化） */
+    state: StateTypeDeclaration;
+    /** 自定义 peek */
+    peek?: (simplePeek: () => unknown) => unknown;
+    /** 自定义 push */
+    push?: (simplePush: (data: unknown) => void, data: unknown) => void;
+    /** 自定义 pop */
+    pop?: (simplePop: () => unknown, simpleWriteResultData: (value: unknown) => void) => void;
+    /** 状态分发器：(peek, status) → 下一状态名 */
+    statusDispatcher: (peek: () => unknown, status: S | null) => S | null;
+    /** 初始化函数（createStateStack() 调用时立即执行） */
+    init?: (state: StateSnapshot, push: (data: unknown) => void) => void;
+    /** 栈元素结构（纯文档约定） */
+    stackElement?: Record<string, unknown>;
+    /** 状态处理函数（每个 S 中的状态名对应一个 handler） */
+    [statusName: string]: StateHandler<S> | string[] | Record<string, unknown> | undefined;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 实例
+// ══════════════════════════════════════════════════════════════
+
+/** StateStack 实例 */
+export interface StateStackInstance {
+    run(): void;
+    readState(): StateSnapshot;
+    push(data: unknown): void;
+    destroy(): void;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 模块链
+// ══════════════════════════════════════════════════════════════
+
+/** 模块覆写对象 */
 export interface StateStackRefinementObject {
     pop?: (prevPop: () => unknown) => () => unknown;
     push?: (prevPush: (data: unknown) => void) => (data: unknown) => void;
@@ -99,32 +112,41 @@ export interface StateStackRefinementObject {
     writeExtra?: (prevWriteExtra: (value: unknown) => void) => (value: unknown) => void;
 }
 
-/**
- * 柯里化后的 createStateStack——用于模块链
- */
+/** 柯里化的 createStateStack（模块链模式返回值） */
 export interface CurriedCreateStateStack {
-    (param: StateStackDefinitionObject): StateStackInstance;
-    (param: StateStackRefinementObject): CurriedCreateStateStack;
+    <S extends string>(def: StateStackDefinition<S>): StateStackInstance;
+    (ref: StateStackRefinementObject): CurriedCreateStateStack;
 }
+
+// ══════════════════════════════════════════════════════════════
+// 函数声明
+// ══════════════════════════════════════════════════════════════
 
 /**
  * 创建状态栈实例
  *
- * @param param - 定义对象或模块覆写对象
- * @param runParent - 控制流回传回调
+ * @param def 定义对象（含 state 字段）→ 创建实例
+ * @param runParent 控制流回传回调
  */
-export declare function createStateStack(
-    param: StateStackDefinitionObject,
+export function createStateStack<S extends string>(
+    def: StateStackDefinition<S>,
     runParent?: () => void
 ): StateStackInstance;
-export declare function createStateStack(
-    param: StateStackRefinementObject,
+
+/**
+ * 创建状态栈模块链
+ *
+ * @param refinement 模块覆写对象（不含 state 字段）→ 返回柯里化函数
+ * @param runParent 控制流回传回调
+ */
+export function createStateStack(
+    refinement: StateStackRefinementObject,
     runParent?: () => void
 ): CurriedCreateStateStack;
 
 /**
- * 模块层装饰器——恒等函数，作为纯视觉标识
+ * 模块层装饰器 — 恒等函数，纯视觉标识
  */
-export declare function refineCreateStateStack(
+export function refineCreateStateStack(
     refinementObject: StateStackRefinementObject
 ): StateStackRefinementObject;

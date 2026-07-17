@@ -44,7 +44,7 @@ export function createStateStackCore<S extends string>(
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
         if (!knownFields.has(key)) {
-            statusOperationObject[key] = (definitionObject as any)[key];
+            statusOperationObject[key] = (definitionObject as Record<string, StateHandler<S>>)[key];
         }
     }
 
@@ -115,7 +115,7 @@ export function createStateStackCore<S extends string>(
             writeResultData: restrictWriteResultData,
             writeExtra: restrictWriteExtra,
             switchStatus: restrictSwitchStatus,
-            createChildStateStack: createChildStateStack as any,
+            createChildStateStack: createChildStateStack as any, // 内部窄签名 → 宽接口
             childStateStack: getchildStateStack as any,
         };
 
@@ -170,10 +170,7 @@ export function createStateStackCore<S extends string>(
                         if (e.effect === 'pop') {
                             (popDefinition as AnyFunc)(simplePop, simpleWriteResultData);
                         } else if (e.effect === 'push') {
-                            const args = e.param as any[];
-                            if (args && args.length > 0) {
-                                (push as any)(...args);
-                            }
+                            (push as any)(...(e.param as any[]));
                         } else if (e.effect === 'run') {
                             if (e.param && (e.param as any[])[0] === 'child') {
                                 const childInst = childStateStackMap[(e.param as any[])[1]];
