@@ -14,7 +14,6 @@
 !/implementations/
 !/docs/
 !/LICENSE
-!/.npmignore
 !/.gitignore
 !/tsconfig.json
 
